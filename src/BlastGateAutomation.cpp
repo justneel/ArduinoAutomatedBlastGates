@@ -29,12 +29,6 @@ enum Mode {
 
 const Mode mode = MACHINE;
 
-
-
-// const int CLOSED_SERVO_POSITION = 130;
-// const int OPEN_SERVO_POSITION = 170;
-
-
 const bool closeGateWhenNotInUse = true;
 const long CLOSE_GATE_DELAY = 20000;
 
@@ -61,7 +55,6 @@ const String COMMAND_DELIM = "_";
 
 RF24 radio(CE_PIN, CSN_PIN);
 
-
 bool currentFlowing = false;
 unsigned long lastBroadcastTime = 0;
 unsigned long lastOnBroadcastReceivedTime = 0;
@@ -70,7 +63,7 @@ long id;
 
 unsigned long currentStoppedTime = 0;
 
-StreamEx serial = Serial;
+// StreamEx serial = Serial;
 GateController gateController;
 
 char textBuff[128] = {0};
@@ -104,7 +97,7 @@ void setup() {
   // Not doing interrupt since we need to constantly check for current which is an analog signal
   //attachInterrupt(digitalPinToInterrupt(WIRELESS_IRQ_PIN), onMessageAvailable, FALLING);
   
-  serial.println("Starting program");
+  Serial.println("Starting program");
   Serial.print("My id: ");
   Serial.println(id);
 }
@@ -220,7 +213,7 @@ void checkOtherGates() {
 
 void processCommand(String fromId, int gateCode, String command) {
   if (fromId.equals(String(id))) {
-    serial.println("Received id was same as my own id.  Ignoring.");
+    Serial.println("Received id was same as my own id.  Ignoring.");
     return;
   }
   if (command.equals(ACTIVE_COMMAND_STRING)) {
@@ -229,10 +222,10 @@ void processCommand(String fromId, int gateCode, String command) {
       lastOnBroadcastReceivedTime = millis();
     } else if (mode == MACHINE) {
       if (!currentFlowing) {
-        serial.println("Remote is on, and I am not.  Closing my gate.");
+        Serial.println("Remote is on, and I am not.  Closing my gate.");
         gateController.closeGate();
       } else {
-        serial.println("Current is flowing, so not closing my gate");
+        Serial.println("Current is flowing, so not closing my gate");
       }
     } else if (mode == BRANCH_GATE) {
       int myCode = currentGateCode();

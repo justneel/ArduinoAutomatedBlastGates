@@ -4,6 +4,8 @@ const unsigned long TIME_TO_CALIBRATE_MS = 10000;
 const double ANLOG_MAX_VALUE = 1023;
 const double MAX_ROTATION = 270;
 
+const int ANALOG_FLOAT_AMOUNT = 2;
+
 GateController::GateController() : openPotPin(OPEN_POT_PIN), closedPotPin(CLOSED_POT_PIN) {
     pinMode(openPotPin, INPUT);
     pinMode(closedPotPin, INPUT);
@@ -12,47 +14,47 @@ GateController::GateController() : openPotPin(OPEN_POT_PIN), closedPotPin(CLOSED
     myservo.attach(SERVO_PIN, 500, 2500);
 
     // TODO: Save and load from eeprom
-    lastOpenPositionReading = getPositionForServo(openPotPin);
-    lastClosedPositionReading = getPositionForServo(closedPotPin);
+    lastOpenPinAnalogReading = analogRead(openPotPin);
+    lastClosedPinAnalogReading = analogRead(closedPotPin);
 
     currentGateState = CLOSED;
-    currentServoPosition = lastClosedPositionReading;
+    currentServoPosition = analogToServoPosition(lastClosedPinAnalogReading);
 };
 
 void GateController::onLoop() {
-    // int openPosition = getPositionForServo(openPotPin);
-    // int closedPosition = getPositionForServo(closedPotPin);
-    // bool openChanged = abs(openPosition - lastOpenPositionReading) > 2;
-    // bool closedChanged = abs(closedPosition - lastClosedPositionReading) > 2;
-    // // Serial.println("onloop");
-    // if (openChanged || closedChanged) {
-    //     Serial.println("In Calibration of gate");
-    //     inCalibration = true;
-    //     calibrationUpdateTime = millis();
-    //     if (openChanged) {
-    //         Serial.print("Changing open position from ");
-    //         Serial.print(lastOpenPositionReading);
-    //         Serial.print(" to ");
-    //         Serial.println(openPosition);
-    //         lastOpenPositionReading = openPosition;
-    //         goToPosition(openPosition);
-    //     } else if (closedChanged) {
-    //         Serial.print("Changing closed position from ");
-    //         Serial.print(lastClosedPositionReading);
-    //         Serial.print(" to ");
-    //         Serial.println(closedPosition);
-    //         lastClosedPositionReading = closedPosition;
-    //         goToPosition(closedPosition);
-    //     }
-    // } else if (inCalibration && (calibrationUpdateTime + TIME_TO_CALIBRATE_MS) < millis()) {
-    //     Serial.println("Calibration over.  Returning to actual positions");
-    //     inCalibration = false;
-    //     if (currentGateState == OPEN) {
-    //         goToPosition(openPosition);
-    //     } else {
-    //         goToPosition(closedPosition);
-    //     }
-    // }
+    int openPosition = analogRead(openPotPin);
+    int closedPosition = analogRead(closedPotPin);
+    bool openChanged = abs(openPosition - lastOpenPinAnalogReading) > ANALOG_FLOAT_AMOUNT;
+    bool closedChanged = abs(closedPosition - lastClosedPinAnalogReading) > ANALOG_FLOAT_AMOUNT;
+    // Serial.println("onloop");
+    if (openChanged || closedChanged) {
+        Serial.println("In Calibration of gate");
+        inCalibration = true;
+        calibrationUpdateTime = millis();
+        if (openChanged) {
+            Serial.print("Changing open position from ");
+            Serial.print(lastOpenPinAnalogReading);
+            Serial.print(" to ");
+            Serial.println(openPosition);
+            lastOpenPinAnalogReading = openPosition;
+            goToAnalogPosition(openPosition);
+        } else if (closedChanged) {
+            Serial.print("Changing closed position from ");
+            Serial.print(lastClosedPinAnalogReading);
+            Serial.print(" to ");
+            Serial.println(closedPosition);
+            lastClosedPinAnalogReading = closedPosition;
+            goToAnalogPosition(closedPosition);
+        }
+    } else if (inCalibration && (calibrationUpdateTime + TIME_TO_CALIBRATE_MS) < millis()) {
+        Serial.println("Calibration over.  Returning to actual positions");
+        inCalibration = false;
+        if (currentGateState == OPEN) {
+            goToAnalogPosition(openPosition);
+        } else {
+            goToAnalogPosition(closedPosition);
+        }
+    }
 }
 
 void GateController::openGate() {
@@ -60,7 +62,7 @@ void GateController::openGate() {
         currentGateState = OPEN;
         Serial.println("Opening the gate");
         if (!inCalibration) {
-            goToPosition(lastOpenPositionReading);
+            goToAnalogPosition(lastOpenPinAnalogReading);
         }
     }
 }
@@ -70,13 +72,17 @@ void GateController::closeGate() {
         currentGateState = CLOSED;
         Serial.println("Closing the gate");
         if (!inCalibration) {
-            goToPosition(lastClosedPositionReading);
+            goToAnalogPosition(lastClosedPinAnalogReading);
         }
     }
 }
 
-int GateController::getPositionForServo(int pin) {
-    return ((double) analogRead(pin) / ANLOG_MAX_VALUE) * MAX_ROTATION;
+int GateController::analogToServoPosition(int analogValue) {
+    return round(((double) analogValue / ANLOG_MAX_VALUE) * MAX_ROTATION);
+}
+
+void GateController::goToAnalogPosition(int analogValue) {
+    goToPosition(analogToServoPosition(analogValue));
 }
 
 void GateController::goToPosition(int position) {

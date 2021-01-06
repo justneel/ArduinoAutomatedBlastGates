@@ -23,13 +23,16 @@ class GateController {
         const int openPotPin;
         const int closedPotPin;
 
-        int lastOpenPositionReading;
-        int lastClosedPositionReading;
+        // int lastOpenPositionReading;
+        // int lastClosedPositionReading;
+        int lastOpenPinAnalogReading;
+        int lastClosedPinAnalogReading;
 
         int currentServoPosition;
         Servo myservo;
 
-        int getPositionForServo(int pin);
+        int analogToServoPosition(int analogValue);
+        void goToAnalogPosition(int analogValue);
         void goToPosition(int position);
 };
 
