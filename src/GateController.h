@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include <Servo.h>
-#include "GatePins.h"
 
 enum GateState {
   OPEN,
@@ -29,7 +28,7 @@ class GateController {
         int lastClosedPinAnalogReading;
 
         int currentServoPosition;
-        Servo myservo;
+        Servo servo;
 
         int analogToServoPosition(int analogValue);
         void goToAnalogPosition(int analogValue);

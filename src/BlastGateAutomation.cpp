@@ -8,6 +8,7 @@
 #include <PrintEx.h>
 #include "GateController.h"
 #include "GatePins.h"
+#include "Constants.h"
 
 
 void notifyCurrentFlowing();
@@ -29,30 +30,6 @@ enum Mode {
 
 const Mode mode = MACHINE;
 
-const bool closeGateWhenNotInUse = true;
-const long CLOSE_GATE_DELAY = 20000;
-
-const byte myAddress[6] = "Tools";
-const byte sendAddress[6] = "Tools";
-const uint8_t CHANNEL = 83;
-
-const double MIN_CURRENT_TO_ACTIVATE = 2.0;
-
-const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
-const long TURN_OFF_DELAY = 15000;
-
-const int ID_BYTES = 8;
-const int DELIM_BYTES = 1;
-const int PAYLOAD_SIZE = 32;
-
-const char ACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "IAmRunning";
-const String ACTIVE_COMMAND_STRING = String(ACTIVE_COMMAND);
-
-//const char INACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] = "NotRunningNow";
-//const String INACTIVE_COMMAND_STRING = String(INACTIVE_COMMAND);
-
-const String COMMAND_DELIM = "_";
-
 RF24 radio(CE_PIN, CSN_PIN);
 
 bool currentFlowing = false;
@@ -68,6 +45,8 @@ GateController gateController;
 
 char textBuff[128] = {0};
 
+Servo myservo;
+int pos = 0;
 void setup() {
 
   randomSeed(analogRead(4));
@@ -100,32 +79,50 @@ void setup() {
   Serial.println("Starting program");
   Serial.print("My id: ");
   Serial.println(id);
+
+  // myservo.attach(3, 500, 2500);
+  myservo.attach(3);
 }
 
 void loop() {
-  if (mode == MACHINE) {
-    if (isCurrentFlowing()) {
-      if (!currentFlowing || (lastBroadcastTime + TIME_BETWEEN_ON_BROADCASTS) < millis()) {
-        gateController.openGate();
-        notifyCurrentFlowing();
-        lastBroadcastTime = millis();
-        currentFlowing = true;
-      }
-    } else if (currentFlowing) {
-      //notifyCurrentStopped();
-      Serial.println("Current has stopped flowing");
-      currentFlowing = false;
-      currentStoppedTime = millis();
-    } else if (closeGateWhenNotInUse && currentStoppedTime != -1 && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
-      gateController.closeGate();
-      currentStoppedTime = -1;
-    }
-    gateController.onLoop();
+  
+  
+
+  for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(20);                       // waits 15ms for the servo to reach the position
   }
+  delay(2000);
+  for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(20);                       // waits 15ms for the servo to reach the position
+  }
+  delay(2000);
+  
+  // if (mode == MACHINE) {
+  //   if (isCurrentFlowing()) {
+  //     if (!currentFlowing || (lastBroadcastTime + TIME_BETWEEN_ON_BROADCASTS) < millis()) {
+  //       gateController.openGate();
+  //       notifyCurrentFlowing();
+  //       lastBroadcastTime = millis();
+  //       currentFlowing = true;
+  //     }
+  //   } else if (currentFlowing) {
+  //     //notifyCurrentStopped();
+  //     Serial.println("Current has stopped flowing");
+  //     currentFlowing = false;
+  //     currentStoppedTime = millis();
+  //   } else if (closeGateWhenNotInUse && currentStoppedTime != -1 && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
+  //     gateController.closeGate();
+  //     currentStoppedTime = -1;
+  //   }
+  //   gateController.onLoop();
+  // }
 
-  checkOtherGates();
+  // checkOtherGates();
 
-  delay(100);
+  // delay(100);
 
 }
 

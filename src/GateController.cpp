@@ -1,24 +1,33 @@
 #include "GateController.h"
+#include "Constants.h"
+#include "GatePins.h"
 
-const unsigned long TIME_TO_CALIBRATE_MS = 10000;
 const double ANLOG_MAX_VALUE = 1023;
 const double MAX_ROTATION = 270;
 
-const int ANALOG_FLOAT_AMOUNT = 2;
+
+const bool ALLOW_CALIBRATION = false;
 
 GateController::GateController() : openPotPin(OPEN_POT_PIN), closedPotPin(CLOSED_POT_PIN) {
     pinMode(openPotPin, INPUT);
     pinMode(closedPotPin, INPUT);
     pinMode(SERVO_POWER_PIN, OUTPUT);
 
-    myservo.attach(SERVO_PIN, 500, 2500);
+    // servo.attach(SERVO_PIN, 500, 2500);
+    servo.attach(SERVO_PIN);
+    digitalWrite(SERVO_POWER_PIN, LOW);
 
     // TODO: Save and load from eeprom
     lastOpenPinAnalogReading = analogRead(openPotPin);
     lastClosedPinAnalogReading = analogRead(closedPotPin);
 
+    // DO NOT SUBMIT
+    lastOpenPinAnalogReading = 1023;
+    lastClosedPinAnalogReading = 0;
+
     currentGateState = CLOSED;
-    currentServoPosition = analogToServoPosition(lastClosedPinAnalogReading);
+    // currentServoPosition = analogToServoPosition(lastClosedPinAnalogReading);
+    currentServoPosition = 0;
 };
 
 void GateController::onLoop() {
@@ -27,7 +36,7 @@ void GateController::onLoop() {
     bool openChanged = abs(openPosition - lastOpenPinAnalogReading) > ANALOG_FLOAT_AMOUNT;
     bool closedChanged = abs(closedPosition - lastClosedPinAnalogReading) > ANALOG_FLOAT_AMOUNT;
     // Serial.println("onloop");
-    if (openChanged || closedChanged) {
+    if (ALLOW_CALIBRATION && (openChanged || closedChanged)) {
         Serial.println("In Calibration of gate");
         inCalibration = true;
         calibrationUpdateTime = millis();
@@ -87,12 +96,13 @@ void GateController::goToAnalogPosition(int analogValue) {
 
 void GateController::goToPosition(int position) {
     if (position == currentServoPosition) {
+        Serial.println("Already at requested position.  Not moving");
         return;
     }
 
-    // Serial.print("Target position: ");
-    // Serial.println(position);
-    analogWrite(SERVO_POWER_PIN, HIGH);
+    Serial.print("Target position: ");
+    Serial.println(position);
+    digitalWrite(SERVO_POWER_PIN, HIGH);
     delay(30);
 
     int inc;
@@ -107,11 +117,11 @@ void GateController::goToPosition(int position) {
     int i = 0;
     do {
         currentServoPosition += inc;
-        myservo.write(currentServoPosition);
-        delay(10);
+        servo.write(currentServoPosition);
+        delay(DELAY_BETWEEN_SERVO_STEPS_MS);
         i++;
     } while (position != currentServoPosition && i < MAX_ROTATION);
 
-    analogWrite(SERVO_POWER_PIN, LOW);
-    // Serial.println("Position achieved");
+    digitalWrite(SERVO_POWER_PIN, LOW);
+    Serial.println("Position achieved");
 }
