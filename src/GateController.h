@@ -12,6 +12,7 @@ enum GateState {
 class GateController {
     public:
         GateController();
+        void setup();
         void onLoop();
         void openGate();
         void closeGate();

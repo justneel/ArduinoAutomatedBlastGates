@@ -5,7 +5,6 @@
 #include <RF24.h>
 // #include <EEPROM.h>
 #include <stdlib.h>
-#include <PrintEx.h>
 #include "GateController.h"
 #include "GatePins.h"
 #include "Constants.h"
@@ -40,7 +39,6 @@ long id;
 
 unsigned long currentStoppedTime = 0;
 
-// StreamEx serial = Serial;
 GateController gateController;
 
 char textBuff[128] = {0};
@@ -64,6 +62,7 @@ void setup() {
 
   pinMode(CURRENT_SENSOR_PIN, INPUT);
   pinMode(DUST_COLLECTOR_PIN, OUTPUT);
+  gateController.setup();
 
   for (int i = 0; i < BRANCH_PINS_LENGTH; i++) {
     pinMode(BRANCH_PINS[i], INPUT_PULLUP);
@@ -79,50 +78,33 @@ void setup() {
   Serial.println("Starting program");
   Serial.print("My id: ");
   Serial.println(id);
-
-  // myservo.attach(3, 500, 2500);
-  myservo.attach(3);
 }
 
 void loop() {
   
-  
-
-  for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
-    // in steps of 1 degree
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(20);                       // waits 15ms for the servo to reach the position
+  if (mode == MACHINE) {
+    if (isCurrentFlowing()) {
+      if (!currentFlowing || (lastBroadcastTime + TIME_BETWEEN_ON_BROADCASTS) < millis()) {
+        gateController.openGate();
+        notifyCurrentFlowing();
+        lastBroadcastTime = millis();
+        currentFlowing = true;
+      }
+    } else if (currentFlowing) {
+      //notifyCurrentStopped();
+      Serial.println("Current has stopped flowing");
+      currentFlowing = false;
+      currentStoppedTime = millis();
+    } else if (closeGateWhenNotInUse && currentStoppedTime != -1 && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
+      gateController.closeGate();
+      currentStoppedTime = -1;
+    }
+    gateController.onLoop();
   }
-  delay(2000);
-  for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(20);                       // waits 15ms for the servo to reach the position
-  }
-  delay(2000);
-  
-  // if (mode == MACHINE) {
-  //   if (isCurrentFlowing()) {
-  //     if (!currentFlowing || (lastBroadcastTime + TIME_BETWEEN_ON_BROADCASTS) < millis()) {
-  //       gateController.openGate();
-  //       notifyCurrentFlowing();
-  //       lastBroadcastTime = millis();
-  //       currentFlowing = true;
-  //     }
-  //   } else if (currentFlowing) {
-  //     //notifyCurrentStopped();
-  //     Serial.println("Current has stopped flowing");
-  //     currentFlowing = false;
-  //     currentStoppedTime = millis();
-  //   } else if (closeGateWhenNotInUse && currentStoppedTime != -1 && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
-  //     gateController.closeGate();
-  //     currentStoppedTime = -1;
-  //   }
-  //   gateController.onLoop();
-  // }
 
-  // checkOtherGates();
+  checkOtherGates();
 
-  // delay(100);
+  delay(100);
 
 }
 
@@ -172,13 +154,15 @@ void onMessageAvailable() {
   bool b1, b2, b3;
   // Clear out the interrupt
   radio.whatHappened(b1, b2, b3);
-
 }
 
 void checkOtherGates() {
   if (radio.available()) {
     radio.read(&textBuff, sizeof(textBuff));
     String received = String(textBuff);
+    if (received.length() == 0) {
+      return;
+    }
     Serial.print("Received: ");
     Serial.println(received);
     // serial.printf("Received: %s");
@@ -262,6 +246,12 @@ void turnOffDustCollector() {
 
 // Derived from: https://arduino.stackexchange.com/questions/19301/acs712-sensor-reading-for-ac-current
 double currentAmps() {
+  if (USE_FAKE_CURRENT) {
+    if (analogRead(CURRENT_SENSOR_PIN) == HIGH) {
+      return MIN_CURRENT_TO_ACTIVATE + 1;
+    }
+    return 0;
+  }
   int rVal = 0;
   int maxVal = 0;
   int minVal = 1023;
@@ -294,9 +284,7 @@ double currentAmps() {
   // the 20A module 100 mv/A (so in this case ampsRMS = voltRMS
   double ampsRMS = (voltRMS * 1000) / 66;
 
-  //  return ampsRMS;
-  // TODO(neel): Change
-  return analogRead(CURRENT_SENSOR_PIN) / 100;
+   return ampsRMS;
 }
 
 bool isCurrentFlowing() {

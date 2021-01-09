@@ -21,6 +21,7 @@ const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
  */
 const long TURN_OFF_DELAY = 10000;
 
+const bool USE_FAKE_CURRENT = true;
 
 const unsigned long TIME_TO_CALIBRATE_MS = 10000;
 const int ANALOG_FLOAT_AMOUNT = 2;

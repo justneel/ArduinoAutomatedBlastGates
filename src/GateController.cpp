@@ -3,18 +3,23 @@
 #include "GatePins.h"
 
 const double ANLOG_MAX_VALUE = 1023;
-const double MAX_ROTATION = 270;
+const double MAX_ROTATION = 180;
 
 
 const bool ALLOW_CALIBRATION = false;
 
-GateController::GateController() : openPotPin(OPEN_POT_PIN), closedPotPin(CLOSED_POT_PIN) {
+GateController::GateController() : openPotPin(OPEN_POT_PIN), closedPotPin(CLOSED_POT_PIN) {};
+
+void GateController::setup() {
     pinMode(openPotPin, INPUT);
     pinMode(closedPotPin, INPUT);
     pinMode(SERVO_POWER_PIN, OUTPUT);
 
-    // servo.attach(SERVO_PIN, 500, 2500);
-    servo.attach(SERVO_PIN);
+    Serial.println("------ Attaching to servo");
+    servo.attach(SERVO_PIN, 500, 2500);
+
+    
+    // servo.attach(SERVO_PIN);
     digitalWrite(SERVO_POWER_PIN, LOW);
 
     // TODO: Save and load from eeprom
@@ -28,8 +33,7 @@ GateController::GateController() : openPotPin(OPEN_POT_PIN), closedPotPin(CLOSED
     currentGateState = CLOSED;
     // currentServoPosition = analogToServoPosition(lastClosedPinAnalogReading);
     currentServoPosition = 0;
-};
-
+}
 void GateController::onLoop() {
     int openPosition = analogRead(openPotPin);
     int closedPosition = analogRead(closedPotPin);
@@ -118,6 +122,10 @@ void GateController::goToPosition(int position) {
     do {
         currentServoPosition += inc;
         servo.write(currentServoPosition);
+        if (currentServoPosition % 10 == 0) {
+            Serial.print("Wiring pos: ");
+            Serial.println(currentServoPosition);
+        }
         delay(DELAY_BETWEEN_SERVO_STEPS_MS);
         i++;
     } while (position != currentServoPosition && i < MAX_ROTATION);
