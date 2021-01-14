@@ -2,12 +2,17 @@
 #define Constants_h
 #include <Arduino.h>
 
-const bool closeGateWhenNotInUse = true;
-/**
- * If we are closing the gate when not in use, this is the 
- * delay after the machine turns off before closing the gate. 
- */
-const long CLOSE_GATE_DELAY = 3000; // DO NOT PUSH
+enum Mode {
+  MACHINE,
+  DUST_COLLECTOR,
+  BRANCH_GATE
+};
+
+const Mode mode = DUST_COLLECTOR;
+
+const bool closeGateWhenNotInUse = false;
+
+const bool ALLOW_CALIBRATION = false;
 
 const long DELAY_BETWEEN_SERVO_STEPS_MS = 20; // DO NOT PUSH
 
@@ -19,7 +24,15 @@ const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
  * When we are the dust collector, this is the delay after the last 
  * machine turns off before we turn off the dust collector.
  */
-const long TURN_OFF_DELAY = 10000;
+const long DUST_COLLECTOR_TURN_OFF_DELAY = 10000;
+
+/**
+ * If we are closing the gate when not in use, this is the 
+ * delay after the machine turns off before closing the gate. 
+ */
+const long CLOSE_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 3000;
+
+const long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 5000;
 
 const bool USE_FAKE_CURRENT = true;
 
@@ -37,8 +50,8 @@ const int PAYLOAD_SIZE = 32;
 const char ACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "IAmRunning";
 const String ACTIVE_COMMAND_STRING = String(ACTIVE_COMMAND);
 
-const char IC_CHECK_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "WhatYourId";
-const char IC_RESPONSE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "ThisIsMyId";
+// const char IC_CHECK_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "WhatYourId";
+// const char IC_RESPONSE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "ThisIsMyId";
 
 //const char INACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] = "NotRunningNow";
 //const String INACTIVE_COMMAND_STRING = String(INACTIVE_COMMAND);

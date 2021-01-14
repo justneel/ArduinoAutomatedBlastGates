@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 
-// Pins
 const int CURRENT_SENSOR_PIN = A5;
 
 const int DUST_COLLECTOR_PIN = A2;
