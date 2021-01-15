@@ -20,8 +20,8 @@ void GateController::setup() {
     lastClosedPinAnalogReading = analogRead(closedPotPin);
 
     // DO NOT SUBMIT
-    lastOpenPinAnalogReading = 1023;
-    lastClosedPinAnalogReading = 0;
+    // lastOpenPinAnalogReading = 1023;
+    // lastClosedPinAnalogReading = 0;
 
     currentGateState = CLOSED;
     // currentServoPosition = analogToServoPosition(lastClosedPinAnalogReading);
@@ -31,6 +31,7 @@ void GateController::onLoop() {
     int openPosition = analogRead(openPotPin);
     int closedPosition = analogRead(closedPotPin);
     bool openChanged = abs(openPosition - lastOpenPinAnalogReading) > ANALOG_FLOAT_AMOUNT;
+    
     bool closedChanged = abs(closedPosition - lastClosedPinAnalogReading) > ANALOG_FLOAT_AMOUNT;
     // Serial.println("onloop");
     if (ALLOW_CALIBRATION && (openChanged || closedChanged)) {
@@ -45,12 +46,12 @@ void GateController::onLoop() {
             lastOpenPinAnalogReading = openPosition;
             goToAnalogPosition(openPosition);
         } else if (closedChanged) {
-            Serial.print("Changing closed position from ");
-            Serial.print(lastClosedPinAnalogReading);
-            Serial.print(" to ");
-            Serial.println(closedPosition);
-            lastClosedPinAnalogReading = closedPosition;
-            goToAnalogPosition(closedPosition);
+            // Serial.print("Changing closed position from ");
+            // Serial.print(lastClosedPinAnalogReading);
+            // Serial.print(" to ");
+            // Serial.println(closedPosition);
+            // lastClosedPinAnalogReading = closedPosition;
+            // goToAnalogPosition(closedPosition);
         }
     } else if (inCalibration && (calibrationUpdateTime + TIME_TO_CALIBRATE_MS) < millis()) {
         Serial.println("Calibration over.  Returning to actual positions");
@@ -116,5 +117,5 @@ void GateController::goToPosition(const int position) {
     } while (position != currentServoPosition);
 
     digitalWrite(SERVO_POWER_PIN, LOW);
-    Serial.println("Position achieved");
+    // Serial.println("Position achieved");
 }

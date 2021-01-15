@@ -8,11 +8,11 @@ enum Mode {
   BRANCH_GATE
 };
 
-const Mode mode = DUST_COLLECTOR;
+const Mode mode = MACHINE;
 
 const bool closeGateWhenNotInUse = false;
 
-const bool ALLOW_CALIBRATION = false;
+const bool ALLOW_CALIBRATION = true;
 
 const long DELAY_BETWEEN_SERVO_STEPS_MS = 20; // DO NOT PUSH
 
@@ -37,7 +37,7 @@ const long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 5000;
 const bool USE_FAKE_CURRENT = true;
 
 const unsigned long TIME_TO_CALIBRATE_MS = 10000;
-const int ANALOG_FLOAT_AMOUNT = 2;
+const int ANALOG_FLOAT_AMOUNT = 5;
 
 const byte myAddress[6] = "Tools";
 const byte sendAddress[6] = "Tools";

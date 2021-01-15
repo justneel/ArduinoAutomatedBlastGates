@@ -17,6 +17,7 @@ const int BRANCH_PINS_LENGTH = 4;
 
 const int SERVO_PIN = 7;
 const int SERVO_POWER_PIN = 8;
+
 const int CLOSED_POT_PIN = A4;
 const int OPEN_POT_PIN = A3; 
 
