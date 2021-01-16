@@ -26,6 +26,8 @@ const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
  */
 const long DUST_COLLECTOR_TURN_OFF_DELAY = 10000;
 
+const long DUST_COLLECTOR_ON_DELAY_BRANCH = 500;
+
 /**
  * If we are closing the gate when not in use, this is the 
  * delay after the machine turns off before closing the gate. 

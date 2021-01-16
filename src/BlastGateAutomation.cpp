@@ -30,6 +30,7 @@ const long UNSET = -1;
 long lastBroadcastTime = UNSET;
 long lastOnBroadcastReceivedTime = UNSET;
 long currentStoppedTime = UNSET;
+bool dustCollectorOn = false;
 
 long id = UNSET;
 
@@ -203,7 +204,12 @@ void processCommand(String fromId, int gateCode, String command) {
   }
   if (command.equals(ACTIVE_COMMAND_STRING)) {
     if (mode == DUST_COLLECTOR) {
-      turnOnDustCollector();
+      if (!dustCollectorOn) {
+        if (gateCode != 0) {
+          delay(DUST_COLLECTOR_ON_DELAY_BRANCH);
+        }
+        turnOnDustCollector();
+      }
       lastOnBroadcastReceivedTime = millis();
     } else if (mode == MACHINE) {
       if (!currentFlowing) {
@@ -237,11 +243,13 @@ void processCommand(String fromId, int gateCode, String command) {
 }
 
 void turnOnDustCollector() {
+  dustCollectorOn = true;
   Serial.println("Turning on dust collector");
   digitalWrite(DUST_COLLECTOR_PIN, HIGH);
 }
 
 void turnOffDustCollector() {
+  dustCollectorOn = false;
   Serial.println("Turning off dust collector");
   digitalWrite(DUST_COLLECTOR_PIN, LOW);
 }
