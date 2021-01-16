@@ -78,7 +78,6 @@ void setup() {
 }
 
 void loop() {
-  // Serial.println("Loop");
   if (mode == MACHINE) {
     if (isCurrentFlowing()) {
       if (!currentFlowing || (lastBroadcastTime + TIME_BETWEEN_ON_BROADCASTS) < millis()) {
@@ -112,7 +111,9 @@ void loop() {
   gateController.onLoop();
   checkOtherGates();
 
-  delay(100);
+  if (SLOW_DOWN_LOOP) {
+    delay(100);
+  }
 }
 
 void notifyCurrentFlowing() {

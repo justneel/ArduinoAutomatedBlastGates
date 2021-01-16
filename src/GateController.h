@@ -9,6 +9,13 @@ enum GateState {
   CLOSED
 };
 
+
+enum CalibrateStatus {
+    NO_CALIBRATION,
+    IN_CALIBRATION,
+    LEAVING_CALIBRATION,
+};
+
 class GateController {
     public:
         GateController();
@@ -18,7 +25,8 @@ class GateController {
         void closeGate();
     private:
         GateState currentGateState;
-        bool inCalibration = false;
+        bool inOpenCalibration = false;
+        bool inCloseCalibration = false;
         unsigned long calibrationUpdateTime = 0;
         const int openPotPin;
         const int closedPotPin;
@@ -34,6 +42,9 @@ class GateController {
         int analogToServoPosition(int analogValue);
         void goToAnalogPosition(int analogValue);
         void goToPosition(int position);
+        CalibrateStatus calibrate(int pin, int& lastReadValue, bool& inCalibration);
+        
+        bool inCalibration() { return inOpenCalibration || inCloseCalibration; }
 };
 
 #endif

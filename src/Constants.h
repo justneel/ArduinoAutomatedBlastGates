@@ -14,7 +14,7 @@ const bool closeGateWhenNotInUse = false;
 
 const bool ALLOW_CALIBRATION = true;
 
-const long DELAY_BETWEEN_SERVO_STEPS_MS = 20; // DO NOT PUSH
+const long DELAY_BETWEEN_SERVO_STEPS_MS = 10; // DO NOT PUSH
 
 const double MIN_CURRENT_TO_ACTIVATE = 2.0;
 
@@ -36,8 +36,26 @@ const long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 5000;
 
 const bool USE_FAKE_CURRENT = true;
 
-const unsigned long TIME_TO_CALIBRATE_MS = 10000;
-const int ANALOG_FLOAT_AMOUNT = 5;
+const bool SLOW_DOWN_LOOP = true; // DO NOT PUSH
+
+/**
+ * When we enter gate calibration mode, this is how long we default stay in that mode
+ * before returning to normal operations.
+ */
+const unsigned long TIME_TO_CALIBRATE_MS = 3000;
+
+const long ANLOG_MAX_VALUE = 1023;
+const long MAX_ROTATION = 180;
+
+// THe analog pin will float slightly.  We actually don't care unless the
+// new value would cause a change in the servo position which is defined in
+// single degrees.
+// const int ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
+const int BEGIN_CALIBRATION_CHANGE_AMOUNT = map(3, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
+const int IN_CALIBRATION_ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
+// const int ANALOG_FLOAT_AMOUNT = 5;
+
+const bool USE_POWER_PIN = false;
 
 const byte myAddress[6] = "Tools";
 const byte sendAddress[6] = "Tools";
