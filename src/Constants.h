@@ -17,9 +17,10 @@ const bool ALLOW_CALIBRATION = true; // NON-DEBUG = true
 
 const bool USE_FAKE_CURRENT = true; // NON-DEBUG = false
 
-const bool SLOW_DOWN_LOOP = true; // NON-DEBUG = false
+const bool SLOW_DOWN_LOOP = false; // NON-DEBUG = false
 
-const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 10; // DO NOT PUSH
+// const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 10; // DO NOT PUSH
+const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 5; // DO NOT PUSH
 
 const double MIN_CURRENT_TO_ACTIVATE = 2.0;
 

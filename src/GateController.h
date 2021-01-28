@@ -23,6 +23,8 @@ class GateController {
         void onLoop();
         void openGate();
         void closeGate();
+        bool isClosed();
+        bool isOpen();
     private:
         GateState currentGateState;
         bool inOpenCalibration = false;

@@ -66,6 +66,7 @@ void setup() {
   analogReference(INTERNAL);
 
   // Let the capacitor charge up before turning on the radio.
+  // No idea if this will actually do anything.
   delay(100);
   configureRadio();
 
@@ -301,16 +302,20 @@ void processCommand(const Payload &payload) {
       lastOnBroadcastReceivedTime = millis();
     } else if (mode == MACHINE) {
       if (!currentFlowing) {
-        Serial.println("Remote is on, and I am not.  Closing my gate.");
-        gateController.closeGate();
+        if (!gateController.isClosed()) {
+          Serial.println("Remote is on, and I am not.  Closing my gate.");
+          gateController.closeGate();
+        }
       } else {
         Serial.println("Current is flowing, so not closing my gate");
       }
     } else if (mode == BRANCH_GATE) {
       int myCode = currentGateCode();
       if ((payload.gateCode & myCode) != 0) {
-        Serial.println("I matched incoming code.  Opening my gate");
-        gateController.openGate();
+        if (!gateController.isOpen()) {
+          Serial.println("I matched incoming code.  Opening my gate");
+          gateController.openGate();
+        }
         lastOnBroadcastReceivedTime = millis();
       } else {
         Serial.print("Got a on command from a branch that was not mine (");

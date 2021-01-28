@@ -102,6 +102,10 @@ void GateController::onLoop() {
     }
 }
 
+bool GateController::isOpen() {
+    return currentGateState == OPEN;
+}
+
 void GateController::openGate() {
     if (currentGateState != OPEN) {
         currentGateState = OPEN;
@@ -112,6 +116,10 @@ void GateController::openGate() {
             Serial.println("Open gate requested, but currently in calibration mode.  Ignoring");
         }
     }
+}
+
+bool GateController::isClosed() {
+    return currentGateState == CLOSED;
 }
 
 void GateController::closeGate() {
