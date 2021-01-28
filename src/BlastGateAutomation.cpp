@@ -3,19 +3,31 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
-// #include <EEPROM.h>
 #include <stdlib.h>
 #include "GateController.h"
 #include "GatePins.h"
 #include "Constants.h"
 #include "Log.h"
+#include <printf.h>
 
+enum Command {
+    RUNNING,
+    NO_LONGER_RUNNING,
+};
 
+struct Payload {
+  long id;
+  int gateCode;
+  Command command;
+};
+Payload radioPayload;
+
+void configureRadio();
 void notifyCurrentFlowing();
-void broadcastCommand(String cmd);
+void broadcastCommand(const Payload &payload);
 int currentGateCode();
 void checkOtherGates();
-void processCommand(String fromId, int gateCode, String command);
+void processCommand(const Payload &payload);
 void turnOnDustCollector();
 void turnOffDustCollector();
 double currentAmps();
@@ -26,31 +38,27 @@ RF24 radio(CE_PIN, CSN_PIN);
 
 bool currentFlowing = false;
 
-const long UNSET = -1;
-long lastBroadcastTime = UNSET;
-long lastOnBroadcastReceivedTime = UNSET;
-long currentStoppedTime = UNSET;
+const unsigned long VALUE_UNSET = -1;
+unsigned long lastBroadcastTime = VALUE_UNSET;
+unsigned long lastOnBroadcastReceivedTime = VALUE_UNSET;
+unsigned long currentStoppedTime = VALUE_UNSET;
 bool dustCollectorOn = false;
 
-long id = UNSET;
+unsigned long id = VALUE_UNSET;
 
 GateController gateController;
-
-char textBuff[128] = {0};
 
 Servo myservo;
 int pos = 0;
 void setup() {
   
   Serial.begin(9600);
+  printf_begin();
+  Serial.println("Starting setup");
+  
+  analogReference(INTERNAL);
 
-  radio.begin();
-  radio.maskIRQ(1, 1, 0);
-  radio.setChannel(CHANNEL);
-  radio.setAutoAck(false);
-  radio.setDataRate(RF24_250KBPS);
-  radio.openReadingPipe(0, myAddress);
-  radio.startListening();
+  configureRadio();
 
   if (USE_FAKE_CURRENT) {
     pinMode(CURRENT_SENSOR_PIN, INPUT_PULLUP);  
@@ -58,7 +66,6 @@ void setup() {
     pinMode(CURRENT_SENSOR_PIN, INPUT);
   }
 
-  pinMode(CURRENT_SENSOR_PIN, INPUT);
   pinMode(DUST_COLLECTOR_PIN, OUTPUT);
   digitalWrite(DUST_COLLECTOR_PIN, LOW);
   
@@ -71,14 +78,81 @@ void setup() {
   if (mode == DUST_COLLECTOR) {
     turnOffDustCollector();
   }
-  
-  // Not doing interrupt since we need to constantly check for current which is an analog signal
-  //attachInterrupt(digitalPinToInterrupt(WIRELESS_IRQ_PIN), onMessageAvailable, FALLING);
-  
-  Serial.println("Starting blast gate automation");
+
+  randomSeed(analogRead(A0));
+
+  Serial.print("Starting blast gate automation in mode: ");
+  switch (mode) {
+    case MACHINE:
+      Serial.println("MACHINE");
+      break;
+    case DUST_COLLECTOR:
+      Serial.println("DUST_COLLECTOR");
+      break;
+    case BRANCH_GATE:
+      Serial.println("BRANCH_GATE");
+      break;
+  }
+}
+
+void print(const Payload &payload) {
+  Serial.print("Payload {id=");
+  Serial.print(payload.id);
+  Serial.print(" gateCode=");
+  Serial.print(payload.gateCode);
+  Serial.print(" command=");
+  switch (payload.command) {
+    case RUNNING:
+      Serial.print("RUNNING");
+      break;
+    case NO_LONGER_RUNNING:
+      Serial.print("NO_LONGER_RUNNING");
+      break;
+    default:
+      Serial.print("UNKNOWN");
+  }
+  Serial.print(" }");
+}
+
+void println(const Payload &payload) {
+  print(payload);
+  Serial.println(" ");
+}
+
+const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
+
+void configureRadio() {
+  radio.failureDetected = false;
+  while (!radio.begin() || !radio.isChipConnected()) {
+    Serial.print(millis() / 1000);
+    Serial.println(" Waiting for radio to start");
+    // radio.printDetails();
+    delay(1000);
+  }
+  radio.setPALevel(RF24_PA_LOW);
+  radio.setChannel(CHANNEL);
+  radio.setAutoAck(false);
+  if (!radio.setDataRate(RADIO_DATA_RATE)) {
+    Serial.println("Could not set the data rate");
+    radio.failureDetected = true;
+  }
+  radio.openReadingPipe(0, myAddress);
+  radio.startListening();
+  // radio.printDetails();
 }
 
 void loop() {
+  if (radio.failureDetected || radio.getDataRate() != RADIO_DATA_RATE) {
+    Serial.print("Radio failure detected via ");
+    if (radio.failureDetected) {
+      Serial.print("radio.failureDetected");
+    } else {
+      Serial.print("Data rate changed");
+    }
+    Serial.println(" Re-initializing radio");
+    radio.failureDetected = true;
+    configureRadio();
+  }
   if (mode == MACHINE) {
     if (isCurrentFlowing()) {
       if (!currentFlowing || (lastBroadcastTime + TIME_BETWEEN_ON_BROADCASTS) < millis()) {
@@ -88,23 +162,22 @@ void loop() {
         gateController.openGate();
       }
     } else if (currentFlowing) {
-      //notifyCurrentStopped();
       Serial.println("Current has stopped flowing");
       currentFlowing = false;
       currentStoppedTime = millis();
-    } else if (closeGateWhenNotInUse && currentStoppedTime != UNSET && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
+    } else if (closeGateWhenNotInUse && currentStoppedTime != VALUE_UNSET && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
       gateController.closeGate();
-      currentStoppedTime = UNSET;
+      currentStoppedTime = VALUE_UNSET;
     }
   } else if (mode == DUST_COLLECTOR) {
-    if (lastOnBroadcastReceivedTime != UNSET && (lastOnBroadcastReceivedTime + DUST_COLLECTOR_TURN_OFF_DELAY) < millis()) {
-      lastOnBroadcastReceivedTime = UNSET;
+    if (lastOnBroadcastReceivedTime != VALUE_UNSET && (lastOnBroadcastReceivedTime + DUST_COLLECTOR_TURN_OFF_DELAY) < millis()) {
+      lastOnBroadcastReceivedTime = VALUE_UNSET;
       turnOffDustCollector();
     }
   } else if (mode == BRANCH_GATE) {
-    if (lastOnBroadcastReceivedTime != UNSET && (lastOnBroadcastReceivedTime + CLOSE_BRANCH_GATE_DELAY) < millis()) {
+    if (lastOnBroadcastReceivedTime != VALUE_UNSET && (lastOnBroadcastReceivedTime + CLOSE_BRANCH_GATE_DELAY) < millis()) {
       Serial.println("Closing branch gate");
-      lastOnBroadcastReceivedTime = UNSET;
+      lastOnBroadcastReceivedTime = VALUE_UNSET;
       gateController.closeGate();
     }
   }
@@ -113,42 +186,30 @@ void loop() {
   checkOtherGates();
 
   if (SLOW_DOWN_LOOP) {
-    delay(100);
+    delay(300);
   }
 }
 
 void notifyCurrentFlowing() {
-  if (id == UNSET) {
+  if (id == VALUE_UNSET) {
     randomSeed(millis());
     id = abs(random(2147483600));
   }
-  String cmd = String(id);
-  cmd.concat(COMMAND_DELIM);
-  cmd.concat(String(currentGateCode()));
-  cmd.concat(COMMAND_DELIM);
-  cmd.concat(ACTIVE_COMMAND);
-  Serial.println("Notifying others I am on");
-
-  broadcastCommand(cmd);
+  Payload send;
+  send.id = id;
+  send.gateCode = currentGateCode();
+  send.command = RUNNING;
+  broadcastCommand(send);
 }
 
-//
-//void notifyCurrentStopped() {
-//  String cmd = String(id);
-//  cmd.concat(COMMAND_DELIM);
-//  cmd.concat(INACTIVE_COMMAND);
-//
-//  Serial.println("Notifying others I am off");
-//  broadcastCommand(cmd);
-//}
-
-void broadcastCommand(String cmd) {
-  Serial.print("Broadcasting command: ");
-  Serial.println(cmd);
+void broadcastCommand(const Payload &payload) {
+  Serial.print(millis() / 1000);
+  Serial.print(" Broadcasting: ");
+  println(payload);
 
   radio.openWritingPipe(sendAddress);
   radio.stopListening();
-  radio.write(cmd.c_str(), cmd.length());
+  radio.write(&payload, sizeof(payload));
   radio.startListening();
 }
 
@@ -163,49 +224,28 @@ int currentGateCode() {
   return value;
 }
 
-void onMessageAvailable() {
-  bool b1, b2, b3;
-  // Clear out the interrupt
-  radio.whatHappened(b1, b2, b3);
-}
-
 void checkOtherGates() {
   if (radio.available()) {
-    radio.read(&textBuff, sizeof(textBuff));
-    String received = String(textBuff);
-    if (received.length() == 0) {
-      return;
-    }
-    Serial.print("Received: ");
-    Serial.println(received);
-    // serial.printf("Received: %s");
+    Payload received;
+    radio.read(&received, sizeof(Payload));
+    
+    Serial.print(millis() / 1000);
+    Serial.print(" Received: ");
+    println(received);
 
-    int indexOfDelim = received.indexOf(COMMAND_DELIM);
-    if (indexOfDelim == -1) {
-      Serial.println("Could not find first delim");
-      return;
-    }
-    String fromId = received.substring(0, indexOfDelim);
-    int gateDelimIndex = received.indexOf(COMMAND_DELIM, indexOfDelim+1);
-    if (gateDelimIndex == -1) {
-      Serial.println("Could not find second delim");
-      return;
-    }
-    String gateCode = received.substring(indexOfDelim + 1, gateDelimIndex);
-    String remoteStatus = received.substring(gateDelimIndex + 1);
-    processCommand(fromId, gateCode.toInt(), remoteStatus);
+    processCommand(received);
   }
 }
 
-void processCommand(String fromId, int gateCode, String command) {
-  if (fromId.equals(String(id))) {
+void processCommand(const Payload &payload) {
+  if (payload.id == id) {
     Serial.println("Received id was same as my own id.  Ignoring.");
     return;
   }
-  if (command.equals(ACTIVE_COMMAND_STRING)) {
+  if (payload.command == RUNNING) {
     if (mode == DUST_COLLECTOR) {
       if (!dustCollectorOn) {
-        if (gateCode != 0) {
+        if (payload.gateCode != 0) {
           delay(DUST_COLLECTOR_ON_DELAY_BRANCH);
         }
         turnOnDustCollector();
@@ -220,17 +260,13 @@ void processCommand(String fromId, int gateCode, String command) {
       }
     } else if (mode == BRANCH_GATE) {
       int myCode = currentGateCode();
-      // Serial.print("Got a on command from a branch: ");
-      // Serial.print(gateCode);
-      // Serial.print(" compared to my code: ");
-      // Serial.println(myCode);
-      if ((gateCode & myCode) != 0) {
+      if ((payload.gateCode & myCode) != 0) {
         Serial.println("I matched incoming code.  Opening my gate");
         gateController.openGate();
         lastOnBroadcastReceivedTime = millis();
       } else {
         Serial.print("Got a on command from a branch that was not mine (");
-        Serial.print(gateCode);
+        Serial.print(payload.gateCode);
         Serial.print("/");
         Serial.print(myCode);
         Serial.println(")");
@@ -238,7 +274,7 @@ void processCommand(String fromId, int gateCode, String command) {
     }
   } else {
     Serial.print("Not an active command.  Ignoring: ");
-    Serial.println(command);
+    println(payload);
   }
 }
 

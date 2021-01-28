@@ -9,12 +9,17 @@ enum Mode {
 };
 
 const Mode mode = MACHINE;
+// const Mode mode = BRANCH_GATE;
 
-const bool closeGateWhenNotInUse = false;
+const bool closeGateWhenNotInUse = true;
 
-const bool ALLOW_CALIBRATION = true;
+const bool ALLOW_CALIBRATION = false; // NON-DEBUG = true
 
-const long DELAY_BETWEEN_SERVO_STEPS_MS = 10; // DO NOT PUSH
+const bool USE_FAKE_CURRENT = true; // NON-DEBUG = false
+
+const bool SLOW_DOWN_LOOP = true; // NON-DEBUG = false
+
+const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 10; // DO NOT PUSH
 
 const double MIN_CURRENT_TO_ACTIVATE = 2.0;
 
@@ -24,21 +29,18 @@ const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
  * When we are the dust collector, this is the delay after the last 
  * machine turns off before we turn off the dust collector.
  */
-const long DUST_COLLECTOR_TURN_OFF_DELAY = 10000;
+const unsigned long DUST_COLLECTOR_TURN_OFF_DELAY = 10000;
 
-const long DUST_COLLECTOR_ON_DELAY_BRANCH = 500;
+const unsigned long DUST_COLLECTOR_ON_DELAY_BRANCH = 500;
 
 /**
  * If we are closing the gate when not in use, this is the 
  * delay after the machine turns off before closing the gate. 
  */
-const long CLOSE_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 3000;
+const unsigned long CLOSE_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 3000;
 
-const long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 5000;
+const unsigned long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 5000;
 
-const bool USE_FAKE_CURRENT = true;
-
-const bool SLOW_DOWN_LOOP = true; // DO NOT PUSH
 
 /**
  * When we enter gate calibration mode, this is how long we default stay in that mode
@@ -57,24 +59,20 @@ const int BEGIN_CALIBRATION_CHANGE_AMOUNT = map(3, 0, MAX_ROTATION, 0, ANLOG_MAX
 const int IN_CALIBRATION_ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
 // const int ANALOG_FLOAT_AMOUNT = 5;
 
-const bool USE_POWER_PIN = false;
+// const bool USE_POWER_PIN = false;
 
 const byte myAddress[6] = "Tools";
 const byte sendAddress[6] = "Tools";
+const byte ackAddress[6] = "ToolA";
+
 const uint8_t CHANNEL = 83;
 
-const int ID_BYTES = 8;
-const int DELIM_BYTES = 1;
-const int PAYLOAD_SIZE = 32;
+// const int ID_BYTES = 8;
+// const int DELIM_BYTES = 1;
+// const int PAYLOAD_SIZE = 32;
 
-const char ACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "IAmRunning";
-const String ACTIVE_COMMAND_STRING = String(ACTIVE_COMMAND);
+// const char ACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "IAmRunning";
+// const String ACTIVE_COMMAND_STRING = String(ACTIVE_COMMAND);
 
-// const char IC_CHECK_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "WhatYourId";
-// const char IC_RESPONSE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "ThisIsMyId";
-
-//const char INACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] = "NotRunningNow";
-//const String INACTIVE_COMMAND_STRING = String(INACTIVE_COMMAND);
-
-const String COMMAND_DELIM = "_";
+// const String COMMAND_DELIM = "_";
 #endif
