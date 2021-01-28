@@ -13,6 +13,7 @@
 
 const unsigned long VALUE_UNSET = LONG_MAX;
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
+const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
 
 enum Command {
     UNKNOWN,
@@ -160,7 +161,7 @@ void configureRadio() {
     // radio.printDetails();
     delay(1000);
   }
-  radio.setPALevel(RF24_PA_LOW);
+  radio.setPALevel(RADIO_POWER_LEVEL);
   radio.setChannel(CHANNEL);
   radio.setAutoAck(false);
   if (!radio.setDataRate(RADIO_DATA_RATE)) {
@@ -174,14 +175,10 @@ void configureRadio() {
 }
 
 void loop() {
-  if (radio.failureDetected || radio.getDataRate() != RADIO_DATA_RATE) {
-    Serial.print("Radio failure detected via ");
-    if (radio.failureDetected) {
-      Serial.print("radio.failureDetected");
-    } else {
-      Serial.print("Data rate changed");
-    }
-    Serial.println(" Re-initializing radio");
+  if (radio.failureDetected 
+      || radio.getDataRate() != RADIO_DATA_RATE 
+      || radio.getPALevel() != RADIO_POWER_LEVEL) {
+    Serial.println("Radio failure detected.");
     radio.failureDetected = true;
     configureRadio();
   }
