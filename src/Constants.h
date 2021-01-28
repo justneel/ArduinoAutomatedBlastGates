@@ -13,7 +13,7 @@ const Mode mode = MACHINE;
 
 const bool closeGateWhenNotInUse = true;
 
-const bool ALLOW_CALIBRATION = false; // NON-DEBUG = true
+const bool ALLOW_CALIBRATION = true; // NON-DEBUG = true
 
 const bool USE_FAKE_CURRENT = true; // NON-DEBUG = false
 
@@ -29,7 +29,7 @@ const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
  * When we are the dust collector, this is the delay after the last 
  * machine turns off before we turn off the dust collector.
  */
-const unsigned long DUST_COLLECTOR_TURN_OFF_DELAY = 10000;
+const unsigned long DUST_COLLECTOR_TURN_OFF_DELAY = TIME_BETWEEN_ON_BROADCASTS * 2;
 
 const unsigned long DUST_COLLECTOR_ON_DELAY_BRANCH = 500;
 
@@ -40,7 +40,6 @@ const unsigned long DUST_COLLECTOR_ON_DELAY_BRANCH = 500;
 const unsigned long CLOSE_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 3000;
 
 const unsigned long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 5000;
-
 
 /**
  * When we enter gate calibration mode, this is how long we default stay in that mode
@@ -67,12 +66,4 @@ const byte ackAddress[6] = "ToolA";
 
 const uint8_t CHANNEL = 83;
 
-// const int ID_BYTES = 8;
-// const int DELIM_BYTES = 1;
-// const int PAYLOAD_SIZE = 32;
-
-// const char ACTIVE_COMMAND[PAYLOAD_SIZE - ID_BYTES - DELIM_BYTES] =   "IAmRunning";
-// const String ACTIVE_COMMAND_STRING = String(ACTIVE_COMMAND);
-
-// const String COMMAND_DELIM = "_";
 #endif

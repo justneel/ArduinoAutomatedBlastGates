@@ -9,55 +9,64 @@
 #include "Constants.h"
 #include "Log.h"
 #include <printf.h>
+#include <limits.h>
+
+const unsigned long VALUE_UNSET = LONG_MAX;
+const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
 
 enum Command {
+    UNKNOWN,
     RUNNING,
     NO_LONGER_RUNNING,
+    HELLO_WORLD, // Debugging message sent out when a machine first comes online
+    WELCOME, // Response back from the HELLO_WORLD
 };
 
 struct Payload {
-  long id;
-  int gateCode;
-  Command command;
+  unsigned long messageId = 0;
+  unsigned long id = 0;
+  unsigned int gateCode = 0;
+  Command command = UNKNOWN;
+  char debugMessage[20] = {0};
+  // unsigned int debugMessageLength;
 };
-Payload radioPayload;
 
 void configureRadio();
 void notifyCurrentFlowing();
-void broadcastCommand(const Payload &payload);
-int currentGateCode();
+void broadcastCommand(Payload &payload);
+unsigned int currentGateCode();
 void checkOtherGates();
 void processCommand(const Payload &payload);
 void turnOnDustCollector();
 void turnOffDustCollector();
 double currentAmps();
 bool isCurrentFlowing();
-void onMessageAvailable();
 
 RF24 radio(CE_PIN, CSN_PIN);
+GateController gateController;
 
 bool currentFlowing = false;
+bool dustCollectorOn = false;
 
-const unsigned long VALUE_UNSET = -1;
 unsigned long lastBroadcastTime = VALUE_UNSET;
 unsigned long lastOnBroadcastReceivedTime = VALUE_UNSET;
 unsigned long currentStoppedTime = VALUE_UNSET;
-bool dustCollectorOn = false;
 
 unsigned long id = VALUE_UNSET;
+unsigned long currentMessageId = 0;
 
-GateController gateController;
-
-Servo myservo;
-int pos = 0;
 void setup() {
-  
   Serial.begin(9600);
   printf_begin();
+  Serial.println(" ");
+  Serial.println("------------");
+  Serial.println(" ");
   Serial.println("Starting setup");
   
   analogReference(INTERNAL);
 
+  // Let the capacitor charge up before turning on the radio.
+  delay(100);
   configureRadio();
 
   if (USE_FAKE_CURRENT) {
@@ -93,11 +102,25 @@ void setup() {
       Serial.println("BRANCH_GATE");
       break;
   }
+
+  Payload send;
+  send.id = id;
+  send.gateCode = currentGateCode();
+  send.command = HELLO_WORLD;
+  memcpy(send.debugMessage, "IAmHere", 7);
+  broadcastCommand(send);
 }
 
 void print(const Payload &payload) {
-  Serial.print("Payload {id=");
-  Serial.print(payload.id);
+  Serial.print("Payload {");
+  Serial.print(" messageId=");
+  Serial.print(payload.messageId);
+  Serial.print(" id=");
+  if (payload.id == VALUE_UNSET) {
+    Serial.print("UNSET");
+  } else {
+    Serial.print(payload.id);
+  }
   Serial.print(" gateCode=");
   Serial.print(payload.gateCode);
   Serial.print(" command=");
@@ -108,9 +131,18 @@ void print(const Payload &payload) {
     case NO_LONGER_RUNNING:
       Serial.print("NO_LONGER_RUNNING");
       break;
+    case HELLO_WORLD:
+      Serial.print("HELLO_WORLD");
+      break;
+    case WELCOME:
+      Serial.print("WELCOME");
+      break;
     default:
       Serial.print("UNKNOWN");
   }
+  Serial.print(" debug=");
+  Serial.print(payload.debugMessage);
+  Serial.print(" ");
   Serial.print(" }");
 }
 
@@ -118,8 +150,6 @@ void println(const Payload &payload) {
   print(payload);
   Serial.println(" ");
 }
-
-const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
 
 void configureRadio() {
   radio.failureDetected = false;
@@ -136,6 +166,7 @@ void configureRadio() {
     Serial.println("Could not set the data rate");
     radio.failureDetected = true;
   }
+  radio.setCRCLength(RF24_CRC_8);
   radio.openReadingPipe(0, myAddress);
   radio.startListening();
   // radio.printDetails();
@@ -165,6 +196,13 @@ void loop() {
       Serial.println("Current has stopped flowing");
       currentFlowing = false;
       currentStoppedTime = millis();
+
+      Payload send;
+      send.id = id;
+      send.gateCode = currentGateCode();
+      send.command = NO_LONGER_RUNNING;
+      memcpy(send.debugMessage, "MachineStopped", 14);
+      broadcastCommand(send);
     } else if (closeGateWhenNotInUse && currentStoppedTime != VALUE_UNSET && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
       gateController.closeGate();
       currentStoppedTime = VALUE_UNSET;
@@ -199,10 +237,15 @@ void notifyCurrentFlowing() {
   send.id = id;
   send.gateCode = currentGateCode();
   send.command = RUNNING;
+  memcpy(send.debugMessage, "CurentFlowing", 13);
   broadcastCommand(send);
 }
 
-void broadcastCommand(const Payload &payload) {
+void broadcastCommand(Payload &payload) {
+  payload.messageId = ++currentMessageId;
+  if (currentMessageId >= (LONG_MAX - 1)) {
+    currentMessageId = 0;
+  }
   Serial.print(millis() / 1000);
   Serial.print(" Broadcasting: ");
   println(payload);
@@ -213,8 +256,8 @@ void broadcastCommand(const Payload &payload) {
   radio.startListening();
 }
 
-int currentGateCode() {
-  int value = 0;
+unsigned int currentGateCode() {
+  unsigned int value = 0;
   for (int i = 0; i < BRANCH_PINS_LENGTH; i++) {
     value *= 2;
     if (digitalRead(BRANCH_PINS[i]) == LOW) {
@@ -228,6 +271,11 @@ void checkOtherGates() {
   if (radio.available()) {
     Payload received;
     radio.read(&received, sizeof(Payload));
+
+    if (received.messageId == 0) {
+      // Received a blank message.  Just ignore.
+      return;
+    }
     
     Serial.print(millis() / 1000);
     Serial.print(" Received: ");
@@ -272,9 +320,20 @@ void processCommand(const Payload &payload) {
         Serial.println(")");
       }
     }
+  } else if (payload.command == NO_LONGER_RUNNING) {
+    // no action needed
+  } else if (payload.command == HELLO_WORLD) {
+    // Lets welcome our new guest.
+    Payload send;
+    send.id = id;
+    send.gateCode = currentGateCode();
+    send.command = WELCOME;
+    memcpy(send.debugMessage, "Welcome", 7);
+    broadcastCommand(send);
+  } else if (payload.command == WELCOME) {
+    // Do nothing
   } else {
-    Serial.print("Not an active command.  Ignoring: ");
-    println(payload);
+    Serial.print("Unknown");
   }
 }
 
@@ -292,12 +351,6 @@ void turnOffDustCollector() {
 
 // Derived from: https://arduino.stackexchange.com/questions/19301/acs712-sensor-reading-for-ac-current
 double currentAmps() {
-  if (USE_FAKE_CURRENT) {
-    if (analogRead(CURRENT_SENSOR_PIN) > 512) {
-      return MIN_CURRENT_TO_ACTIVATE + 1;
-    }
-    return 0;
-  }
   int rVal = 0;
   int maxVal = 0;
   int minVal = 1023;
@@ -334,9 +387,12 @@ double currentAmps() {
 }
 
 bool isCurrentFlowing() {
-  // double current = currentAmps();
-  // Serial.print("Current flowing: ");
-  // Serial.println(current);
+  if (USE_FAKE_CURRENT) {
+    if (analogRead(CURRENT_SENSOR_PIN) > 512) {
+      return false;
+    }
+    return true;
+  }
   return currentAmps() >= MIN_CURRENT_TO_ACTIVATE;
 }
 
