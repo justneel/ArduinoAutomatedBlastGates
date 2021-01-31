@@ -10,10 +10,11 @@ enum Mode {
 
 const Mode mode = MACHINE;
 // const Mode mode = BRANCH_GATE;
+// const Mode mode = DUST_COLLECTOR;
 
 const bool closeGateWhenNotInUse = true;
 
-const bool ALLOW_CALIBRATION = true; // NON-DEBUG = true
+const bool SERIAL_CALIBRATION = true;
 
 const bool USE_FAKE_CURRENT = true; // NON-DEBUG = false
 
@@ -46,7 +47,7 @@ const unsigned long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 50
  * When we enter gate calibration mode, this is how long we default stay in that mode
  * before returning to normal operations.
  */
-const unsigned long TIME_TO_CALIBRATE_MS = 3000;
+const unsigned long TIME_TO_CALIBRATE_MS = 7000;
 
 const long ANLOG_MAX_VALUE = 1023;
 const long MAX_ROTATION = 180;

@@ -5,7 +5,7 @@
 
 const int CURRENT_SENSOR_PIN = A5;
 
-const int DUST_COLLECTOR_PIN = A2;
+const int DUST_COLLECTOR_PIN = A1;
 
 // const int WIRELESS_IRQ_PIN = 2;
 

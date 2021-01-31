@@ -9,11 +9,16 @@ enum GateState {
   CLOSED
 };
 
-
 enum CalibrateStatus {
     NO_CALIBRATION,
     IN_CALIBRATION,
     LEAVING_CALIBRATION,
+};
+
+
+struct GatePositions {
+    int closedPosition = 0;
+    int openPosition = 180;
 };
 
 class GateController {
@@ -27,6 +32,8 @@ class GateController {
         bool isOpen();
     private:
         GateState currentGateState;
+        GatePositions gatePositions;
+
         bool inOpenCalibration = false;
         bool inCloseCalibration = false;
         unsigned long calibrationUpdateTime = 0;

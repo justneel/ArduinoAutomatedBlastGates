@@ -1,6 +1,7 @@
 #include "GateController.h"
 #include "Constants.h"
 #include "GatePins.h"
+#include <EEPROM.h>
 
 const unsigned long ANALOG_READ_SAMPLE_DURATION_MS = 100;
 
@@ -21,23 +22,28 @@ void GateController::setup() {
     if (mode == DUST_COLLECTOR) {
         return;
     }
-    pinMode(openPotPin, INPUT);
-    pinMode(closedPotPin, INPUT);
-
+    
     currentGateState = CLOSED;
+    if (SERIAL_CALIBRATION) {
+        EEPROM.get(0, gatePositions);
+        Serial.print("Loaded gate positions from memory: open=");
+        Serial.print(gatePositions.openPosition);
+        Serial.print(" closed=");
+        Serial.println(gatePositions.closedPosition);
+    } else {
+        pinMode(openPotPin, INPUT);
+        pinMode(closedPotPin, INPUT);
 
-    lastOpenPinAnalogReading = averageAnalogRead(openPotPin);
-    lastClosedPinAnalogReading = averageAnalogRead(closedPotPin);
+        lastOpenPinAnalogReading = averageAnalogRead(openPotPin);
+        lastClosedPinAnalogReading = averageAnalogRead(closedPotPin);
 
-    currentServoPosition = lastClosedPinAnalogReading;
-    servo.write(analogToServoPosition(currentServoPosition));
+        currentServoPosition = lastClosedPinAnalogReading;
+        servo.write(analogToServoPosition(currentServoPosition));
+    }
     servo.attach(SERVO_PIN, 500, 2500);
 }
 
 CalibrateStatus GateController::calibrate(int pin, int& lastReadValue, bool& inCalibration) {
-    if (!ALLOW_CALIBRATION) {
-        return NO_CALIBRATION;
-    }
     int newReading = averageAnalogRead(pin);
     int diff = abs(newReading - lastReadValue);
     if ((!inCalibration && diff >= BEGIN_CALIBRATION_CHANGE_AMOUNT)
@@ -71,33 +77,86 @@ void GateController::onLoop() {
     if (mode == DUST_COLLECTOR) {
         return;
     }
-    CalibrateStatus status;
-    bool calibrationDone = false;
-    if (inOpenCalibration) {
-        status = calibrate(openPotPin, lastOpenPinAnalogReading, inOpenCalibration);
-        if (status == LEAVING_CALIBRATION) {
-            Serial.println("Finished open calibration");
-            calibrationDone = true;
-        }
-    } else if (inCloseCalibration) {
-        status = calibrate(closedPotPin, lastClosedPinAnalogReading, inCloseCalibration);
-        if (status == LEAVING_CALIBRATION) {
-            Serial.println("Finished closed calibration");
-            calibrationDone = true;
-        }
-    } else {
-        // check both
-        status = calibrate(openPotPin, lastOpenPinAnalogReading, inOpenCalibration);
-        if (status != IN_CALIBRATION) {
-            calibrate(closedPotPin, lastClosedPinAnalogReading, inCloseCalibration);
-        }
-    }
+    if (SERIAL_CALIBRATION) {
+        calibrationUpdateTime = 0;
+        inOpenCalibration = false;
+        inCloseCalibration = false;
+        bool positionsUpdated = false;
+        while (Serial.available() || (inCalibration() && (calibrationUpdateTime + TIME_TO_CALIBRATE_MS) > millis())) {
 
-    if (calibrationDone) {
-        if (currentGateState == OPEN) {
-            goToAnalogPosition(lastOpenPinAnalogReading);
+            String input = Serial.readStringUntil(' ');
+            int newPosition = Serial.parseInt();
+            if (newPosition > 0 && newPosition <= 180) {
+                calibrationUpdateTime = millis();
+
+                if (input.startsWith("o")) {
+                    Serial.print("Updating open position to: ");
+                    Serial.println(newPosition);
+                    inOpenCalibration = true;
+                    positionsUpdated = positionsUpdated || gatePositions.openPosition != newPosition;
+                    gatePositions.openPosition = newPosition;
+                    calibrationUpdateTime = millis();
+                    goToPosition(newPosition);
+                
+                } else if (input.startsWith("c")) {
+                    Serial.print("Updating closed position to: ");
+                    Serial.println(newPosition);
+                    inCloseCalibration = true;
+                    positionsUpdated = positionsUpdated || gatePositions.openPosition != newPosition;
+                    gatePositions.closedPosition = newPosition;
+                    calibrationUpdateTime = millis();
+                    goToPosition(newPosition);
+                }
+            }   
+        }
+        
+        if (inCalibration()) {
+            Serial.println("Serial calibration complete");
+            inOpenCalibration = false;
+            inCloseCalibration = false;
+            if (positionsUpdated) {
+                Serial.print("Saving new gate positions: open=");
+                Serial.print(gatePositions.openPosition);
+                Serial.print(" closed=");
+                Serial.println(gatePositions.closedPosition);
+                EEPROM.put(0, gatePositions);
+            }
+            if (currentGateState == OPEN) {
+                goToPosition(gatePositions.openPosition);
+            } else if (currentGateState == CLOSED) {
+                goToPosition(gatePositions.closedPosition);
+            }
+        }
+        
+    } else {
+        CalibrateStatus status;
+        bool calibrationDone = false;
+        if (inOpenCalibration) {
+            status = calibrate(openPotPin, lastOpenPinAnalogReading, inOpenCalibration);
+            if (status == LEAVING_CALIBRATION) {
+                Serial.println("Finished open calibration");
+                calibrationDone = true;
+            }
+        } else if (inCloseCalibration) {
+            status = calibrate(closedPotPin, lastClosedPinAnalogReading, inCloseCalibration);
+            if (status == LEAVING_CALIBRATION) {
+                Serial.println("Finished closed calibration");
+                calibrationDone = true;
+            }
         } else {
-            goToAnalogPosition(lastClosedPinAnalogReading);
+            // check both
+            status = calibrate(openPotPin, lastOpenPinAnalogReading, inOpenCalibration);
+            if (status != IN_CALIBRATION) {
+                calibrate(closedPotPin, lastClosedPinAnalogReading, inCloseCalibration);
+            }
+        }
+
+        if (calibrationDone) {
+            if (currentGateState == OPEN) {
+                goToAnalogPosition(lastOpenPinAnalogReading);
+            } else {
+                goToAnalogPosition(lastClosedPinAnalogReading);
+            }
         }
     }
 }
