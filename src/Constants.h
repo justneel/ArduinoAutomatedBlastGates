@@ -1,6 +1,7 @@
 #ifndef Constants_h
 #define Constants_h
 #include <Arduino.h>
+#include <RF24.h>
 
 enum Mode {
   MACHINE,
@@ -21,7 +22,7 @@ const bool USE_FAKE_CURRENT = true; // NON-DEBUG = false
 const bool SLOW_DOWN_LOOP = false; // NON-DEBUG = false
 
 // const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 10; // DO NOT PUSH
-const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 5; // DO NOT PUSH
+const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 5;
 
 const double MIN_CURRENT_TO_ACTIVATE = 2.0;
 
@@ -34,7 +35,6 @@ const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
 const unsigned long DUST_COLLECTOR_TURN_OFF_DELAY = TIME_BETWEEN_ON_BROADCASTS * 2;
 
 const unsigned long DUST_COLLECTOR_ON_DELAY_BRANCH = 500;
-
 /**
  * If we are closing the gate when not in use, this is the 
  * delay after the machine turns off before closing the gate. 
@@ -62,10 +62,10 @@ const int IN_CALIBRATION_ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_
 
 // const bool USE_POWER_PIN = false;
 
-const byte myAddress[6] = "Tools";
-const byte sendAddress[6] = "Tools";
-const byte ackAddress[6] = "ToolA";
+const uint64_t myAddress =  0xDEADBEEFAB;
+const uint64_t sendAddress = myAddress;
+const uint64_t ackAddress = 0xDEADBEEFAD;
 
-const uint8_t CHANNEL = 83;
+const uint8_t CHANNEL = 124;
 
 #endif
