@@ -3,6 +3,18 @@
 #include "GatePins.h"
 #include <EEPROM.h>
 
+
+const long ANLOG_MAX_VALUE = 1023;
+const long MAX_ROTATION = 180;
+
+// THe analog pin will float slightly.  We actually don't care unless the
+// new value would cause a change in the servo position which is defined in
+// single degrees.
+// const int ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
+const int BEGIN_CALIBRATION_CHANGE_AMOUNT = map(3, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
+const int IN_CALIBRATION_ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
+
+// const bool USE_POWER_PIN = false;
 const unsigned long ANALOG_READ_SAMPLE_DURATION_MS = 100;
 
 int averageAnalogRead(int pin) {

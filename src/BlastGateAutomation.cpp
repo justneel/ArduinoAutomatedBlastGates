@@ -1,55 +1,25 @@
 #include <Arduino.h>
 #include <Servo.h>
-// #include <SPI.h>
-#include <nRF24L01.h>
-#include <RF24.h>
+
 #include <stdlib.h>
 #include "GateController.h"
 #include "GatePins.h"
 #include "Constants.h"
+#include "RadioController.h"
 #include "Log.h"
 #include <printf.h>
 #include <limits.h>
 
-const unsigned long VALUE_UNSET = 0;
-const rf24_datarate_e RADIO_DATA_RATE = RF24_250KBPS;
-const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_HIGH;
-
-const int BROADCAST_RETRIES = 50;
-const unsigned long BROADCAST_RETRY_DELAY = 50;
-
-enum Command {
-    UNKNOWN,
-    ACK,
-    RUNNING,
-    NO_LONGER_RUNNING,
-    HELLO_WORLD, // Debugging message sent out when a machine first comes online
-    WELCOME, // Response back from the HELLO_WORLD
-};
-
-struct Payload {
-  unsigned long messageId = VALUE_UNSET;
-  unsigned long id = VALUE_UNSET;
-  unsigned long toId = VALUE_UNSET;
-  unsigned int gateCode = 0;
-  Command command = UNKNOWN;
-};
-
-const int payloadSize = sizeof(Payload);
-
-void configureRadio();
-void configureRadioForNormalReading();
 void notifyCurrentFlowing();
-void broadcastCommand(Payload &payload, boolean ack);
-void broadcastCommand(Payload &payload);
-unsigned int currentGateCode();
+
 void checkOtherGates();
 void processCommand(const Payload &payload);
 void turnOnDustCollector();
 void turnOffDustCollector();
 double currentAmps();
 
-RF24 radio(CE_PIN, CSN_PIN);
+
+RadioController radioController;
 GateController gateController;
 
 bool currentFlowing = false;
@@ -58,12 +28,6 @@ bool dustCollectorOn = false;
 unsigned long lastBroadcastTime = VALUE_UNSET;
 unsigned long lastOnBroadcastReceivedTime = VALUE_UNSET;
 unsigned long currentStoppedTime = VALUE_UNSET;
-
-unsigned long id = VALUE_UNSET;
-unsigned long currentMessageId = 0;
-
-const uint8_t BROADCAST_PIPE = 1;
-const uint8_t ACK_PIPE = 2;
 
 void setup() {
   Serial.begin(9600);
@@ -75,11 +39,6 @@ void setup() {
   
   // analogReference(INTERNAL);
 
-  // Let the capacitor charge up before turning on the radio.
-  // No idea if this will actually do anything.
-  // delay(100);
-  configureRadioForNormalReading();
-
   if (USE_FAKE_CURRENT) {
     pinMode(CURRENT_SENSOR_PIN, INPUT_PULLUP);  
   } else {
@@ -90,16 +49,12 @@ void setup() {
   digitalWrite(DUST_COLLECTOR_PIN, LOW);
   
   gateController.setup();
+  radioController.setup();
 
-  for (int i = 0; i < BRANCH_PINS_LENGTH; i++) {
-    pinMode(BRANCH_PINS[i], INPUT_PULLUP);
-  }
 
   if (mode == DUST_COLLECTOR) {
     turnOffDustCollector();
   }
-
-  randomSeed(analogRead(A0));
 
   Serial.print("Starting blast gate automation in mode: ");
   switch (mode) {
@@ -114,121 +69,13 @@ void setup() {
       break;
   }
 
-  Payload send;
-  send.id = id;
-  send.gateCode = currentGateCode();
-  send.command = HELLO_WORLD;
-  // memcpy(send.debugMessage, "IAmHere", 7);
-  broadcastCommand(send);
+  radioController.broadcastCommand(HELLO_WORLD);
 }
 
-void printId(unsigned long id) {
-  if (id == VALUE_UNSET) {
-    Serial.print("UNSET");
-  } else {
-    Serial.print(id);
-  }
-}
-
-void print(const Payload &payload) {
-  Serial.print("Payload {");
-  Serial.print(" messageId=");
-  Serial.print(payload.messageId);
-  Serial.print(" id=");
-  printId(payload.id);
-  Serial.print(" toId=");
-  printId(payload.toId);
-  Serial.print(" gateCode=");
-  Serial.print(payload.gateCode);
-  Serial.print(" command=");
-  switch (payload.command) {
-    case RUNNING:
-      Serial.print("RUNNING");
-      break;
-    case NO_LONGER_RUNNING:
-      Serial.print("NO_LONGER_RUNNING");
-      break;
-    case HELLO_WORLD:
-      Serial.print("HELLO_WORLD");
-      break;
-    case WELCOME:
-      Serial.print("WELCOME");
-      break;
-    case ACK:
-      Serial.print("ACK");
-      break;
-    default:
-      Serial.print("UNKNOWN");
-  }
-  // Serial.print(" debug=");
-  // Serial.print(payload.debugMessage);
-  Serial.print(" ");
-  Serial.print(" }");
-}
-
-void println(const Payload &payload) {
-  print(payload);
-  Serial.println(" ");
-}
-
-void configureRadio() {
-  radio.failureDetected = false;
-  while (!radio.begin() || !radio.isChipConnected()) {
-    Serial.print(millis() / 1000);
-    Serial.println(" Waiting for radio to start");
-    // radio.printDetails();
-    delay(50);
-  }
-  radio.setPALevel(RADIO_POWER_LEVEL);
-  radio.setChannel(CHANNEL);
-  radio.setAutoAck(false);
-  if (!radio.setDataRate(RADIO_DATA_RATE)) {
-    Serial.println("Could not set the data rate");
-    radio.failureDetected = true;
-  }
-  radio.setPayloadSize(payloadSize);
-  radio.setCRCLength(RF24_CRC_8);
-
-  radio.openReadingPipe(BROADCAST_PIPE, myAddress);
-}
-
-void configureRadioForNormalReading() {
-  configureRadio();
-
-  radio.startListening();
-}
-
-void configureRadioForAckReading() {
-  configureRadio();
-  radio.openReadingPipe(ACK_PIPE, ackAddress);
-  radio.startListening();
-}
-
-void configureRadioForReadingAck() {
-  configureRadio();
-
-  radio.openReadingPipe(ACK_PIPE, ackAddress);
-  radio.startListening();
-}
-
-bool radioFailed() {
-  if (radio.failureDetected 
-      || radio.getDataRate() != RADIO_DATA_RATE 
-      || radio.getPALevel() != RADIO_POWER_LEVEL) {
-    radio.failureDetected = true;
-    return true;
-  }
-  return false;
-}
 
 void loop() {
-  if (radio.failureDetected 
-      || radio.getDataRate() != RADIO_DATA_RATE 
-      || radio.getPALevel() != RADIO_POWER_LEVEL) {
-    Serial.println("Radio failure detected.");
-    radio.failureDetected = true;
-    configureRadioForNormalReading();
-  }
+  radioController.onLoop();
+
   if (mode == MACHINE) {
     double current = currentAmps();
     if (current >= MIN_CURRENT_TO_ACTIVATE) {
@@ -245,13 +92,7 @@ void loop() {
       Serial.println("Current has stopped flowing");
       currentFlowing = false;
       currentStoppedTime = millis();
-
-      Payload send;
-      send.id = id;
-      send.gateCode = currentGateCode();
-      send.command = NO_LONGER_RUNNING;
-      // memcpy(send.debugMessage, "MachineStopped", 14);
-      broadcastCommand(send);
+      radioController.broadcastCommand(NO_LONGER_RUNNING, false);
     } else if (closeGateWhenNotInUse && currentStoppedTime != VALUE_UNSET && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
       gateController.closeGate();
       currentStoppedTime = VALUE_UNSET;
@@ -278,142 +119,21 @@ void loop() {
 }
 
 void notifyCurrentFlowing() {
-  if (id == VALUE_UNSET) {
-    randomSeed(millis());
-    id = abs(random(2147483600));
-  }
-  Payload send;
-  send.id = id;
-  send.gateCode = currentGateCode();
-  send.command = RUNNING;
-  broadcastCommand(send, true);
-}
-
-void broadcastCommand(Payload &payload) {
-  broadcastCommand(payload, false);
-}
-void broadcastCommand(Payload &payload, boolean ack) {
-  payload.messageId = ++currentMessageId;
-  if (currentMessageId >= (LONG_MAX - 1)) {
-    currentMessageId = 1;
-  }
-  Serial.print(millis() / 1000.0);
-  Serial.print(" Broadcasting: ");
-  println(payload);
-
-  unsigned long messageSentTime = millis();
-
-  while (radioFailed()) {
-    Serial.println("Radio failed while trying to send out message.");
-    configureRadioForNormalReading();
-  }
-
-  radio.stopListening();
-  if (payload.command == ACK) {
-    radio.openWritingPipe(ackAddress);
-  } else {
-    radio.openWritingPipe(sendAddress);
-  }
-  radio.write(&payload, payloadSize);
-  // delayMicroseconds(250);
-  if (ack) {
-    radio.openReadingPipe(ACK_PIPE, ackAddress);
-  }
-  radio.startListening();
-  if (ack) {
-    boolean ackReceived = false;
-    int retries = 0;
-    Payload incomingMessage;
-    while (!ackReceived && retries < BROADCAST_RETRIES) {
-      if (radioFailed()) {
-        Serial.println("radio failed while in loop");
-        configureRadioForAckReading();
-        radio.openReadingPipe(ACK_PIPE, ackAddress);
-        radio.startListening();
-      }
-      if (radio.available()) {
-        radio.read(&incomingMessage, payloadSize);
-        if (incomingMessage.command == ACK && incomingMessage.toId == id) {
-          // Serial.println("ACK received");
-          ackReceived = true;
-        } else {
-          Serial.print("Waiting for ack, but another message was received instead: ");
-          println(incomingMessage);
-        }
-      } else if ((messageSentTime + BROADCAST_RETRY_DELAY) < millis()) {
-        radio.stopListening();
-        radio.openWritingPipe(sendAddress);
-        radio.write(&payload, payloadSize);
-        messageSentTime = millis();
-        retries++;
-        radio.startListening();
-      }
-    }
-    if (ackReceived) {
-      Serial.print("Ack received after retries: ");
-      Serial.println(retries);
-    }
-    if (!ackReceived) {
-      Serial.println("Never received ack for command");
-    }
-
-    radio.closeReadingPipe(ACK_PIPE);
-    radio.startListening();
-  }
-}
-
-unsigned int currentGateCode() {
-  unsigned int value = 0;
-  for (int i = 0; i < BRANCH_PINS_LENGTH; i++) {
-    value *= 2;
-    if (digitalRead(BRANCH_PINS[i]) == LOW) {
-      value++;
-    }
-  }
-  return value;
+  radioController.broadcastCommand(RUNNING, true);
 }
 
 void checkOtherGates() {
-  uint8_t incomingPipe;
-  if (radio.available(&incomingPipe) && incomingPipe == BROADCAST_PIPE) {
-    Payload received;
-    radio.read(&received, payloadSize);
-
-    if (received.messageId == 0) {
-      // Received a blank message.  Just ignore.
-      return;
-    }
-    
-    Serial.print(millis() / 1000.0);
-    Serial.print(" Received: ");
-    println(received);
-
+  Payload received;
+  if (radioController.getMessage(received)) {
     processCommand(received);
   }
 }
 
-void sendAck(const Payload &originalPayload) {
-  Payload ackMessage;
-  ackMessage.id = id;
-  ackMessage.toId = originalPayload.id;
-  ackMessage.command = ACK;
-  broadcastCommand(ackMessage);
-}
-
 void processCommand(const Payload &payload) {
-  if (payload.id == id && payload.id != VALUE_UNSET) {
-    Serial.println("Received id was same as my own id.  Ignoring.");
-    return;
-  }
-  if (payload.toId != VALUE_UNSET && payload.toId != id) {
-    Serial.print("Message was directed to another id: ");
-    printId(payload.id);
-    Serial.print(" vs my id: ");
-    printId(id);
-    Serial.println(" Ignoring command");
-  }
+  
   if (payload.command == RUNNING) {
     if (mode == DUST_COLLECTOR) {
+      radioController.sendAck(payload);
       if (!dustCollectorOn) {
         if (payload.gateCode != 0) {
           delay(DUST_COLLECTOR_ON_DELAY_BRANCH);
@@ -421,7 +141,6 @@ void processCommand(const Payload &payload) {
         turnOnDustCollector();
       }
       lastOnBroadcastReceivedTime = millis();
-      sendAck(payload);
     } else if (mode == MACHINE) {
       if (!currentFlowing) {
         if (!gateController.isClosed()) {
@@ -432,7 +151,7 @@ void processCommand(const Payload &payload) {
         Serial.println("Current is flowing, so not closing my gate");
       }
     } else if (mode == BRANCH_GATE) {
-      int myCode = currentGateCode();
+      int myCode = radioController.currentGateCode();
       if ((payload.gateCode & myCode) != 0) {
         if (!gateController.isOpen()) {
           Serial.println("I matched incoming code.  Opening my gate");
@@ -451,12 +170,7 @@ void processCommand(const Payload &payload) {
     // no action needed
   } else if (payload.command == HELLO_WORLD) {
     // Lets welcome our new guest.
-    Payload send;
-    send.id = id;
-    send.gateCode = currentGateCode();
-    send.command = WELCOME;
-    // memcpy(send.debugMessage, "Welcome", 7);
-    broadcastCommand(send);
+    radioController.broadcastCommand(WELCOME);
   } else if (payload.command == WELCOME) {
     // Do nothing
   } else {
@@ -488,9 +202,9 @@ double currentAmps() {
   int rVal = 0;
   int maxVal = 0;
   int minVal = 1023;
-  int sampleDuration = 100; // 100ms
+  unsigned long sampleDuration = 100; // 100ms
 
-  uint32_t startTime = millis();
+  unsigned long startTime = millis();
   // take samples for 100ms
   while ((millis() - startTime) < sampleDuration)
   {

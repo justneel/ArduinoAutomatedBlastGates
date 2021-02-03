@@ -49,23 +49,14 @@ const unsigned long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 50
  */
 const unsigned long TIME_TO_CALIBRATE_MS = 7000;
 
-const long ANLOG_MAX_VALUE = 1023;
-const long MAX_ROTATION = 180;
-
-// THe analog pin will float slightly.  We actually don't care unless the
-// new value would cause a change in the servo position which is defined in
-// single degrees.
-// const int ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
-const int BEGIN_CALIBRATION_CHANGE_AMOUNT = map(3, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
-const int IN_CALIBRATION_ANALOG_FLOAT_AMOUNT = map(1, 0, MAX_ROTATION, 0, ANLOG_MAX_VALUE);
-// const int ANALOG_FLOAT_AMOUNT = 5;
-
-// const bool USE_POWER_PIN = false;
+const unsigned long DUST_COLLECTOR_ID = 123456789;
 
 const uint64_t myAddress =  0xDEADBEEFAB;
 const uint64_t sendAddress = myAddress;
 const uint64_t ackAddress = 0xDEADBEEFAD;
 
 const uint8_t CHANNEL = 124;
+
+const unsigned long VALUE_UNSET = 0;
 
 #endif
