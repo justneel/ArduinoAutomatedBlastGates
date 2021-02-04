@@ -1,8 +1,6 @@
 #include "RadioController.h"
 #include <limits.h>
 
-const bool ACK_ON_BROADCAST_CHANNEL = true;
-
 void printId(unsigned long id) {
   if (id == VALUE_UNSET) {
     Serial.print("UNSET");
@@ -87,15 +85,28 @@ void RadioController::configureRadio() {
   }
   radio.setPALevel(RADIO_POWER_LEVEL);
   radio.setChannel(CHANNEL);
-  radio.setAutoAck(false);
+  radio.setAutoAck(true);
   if (!radio.setDataRate(RADIO_DATA_RATE)) {
     Serial.println("Could not set the data rate");
     radio.failureDetected = true;
   }
   radio.setPayloadSize(payloadSize);
+  // radio.enableDynamicPayloads();
+  radio.enableDynamicAck();
   radio.setCRCLength(RF24_CRC_8);
 
   radio.openReadingPipe(BROADCAST_PIPE, myAddress);
+  radio.openReadingPipe(ACK_PIPE, ackAddress);
+  if (mode == DUST_COLLECTOR) {
+    // radio.enableAckPayload();
+    // radio.setAutoAck(ACK_PIPE, true);
+    // Payload ackPayload;
+    // ackPayload.id = id;
+    // ackPayload.command = ACK;
+    // radio.writeAckPayload(ACK_PIPE, &ackPayload, payloadSize);
+  } else {
+    radio.setRetries(5, BROADCAST_RETRIES);
+  }
 }
 
 void RadioController::configureRadioForNormalReading() {
@@ -106,9 +117,9 @@ void RadioController::configureRadioForNormalReading() {
 
 void RadioController::configureRadioForAckReading() {
   configureRadio();
-  if (!ACK_ON_BROADCAST_CHANNEL) {
-    radio.openReadingPipe(ACK_PIPE, ackAddress);
-  } 
+  // if (!ACK_ON_BROADCAST_CHANNEL) {
+  //   radio.openReadingPipe(ACK_PIPE, ackAddress);
+  // } 
   radio.startListening();
 }
 
@@ -132,8 +143,8 @@ unsigned long RadioController::getNextMessageId() {
 
 bool RadioController::getMessage(Payload &received) {
     uint8_t incomingPipe;
-    if (radio.available(&incomingPipe) && incomingPipe == BROADCAST_PIPE) {
-        radio.read(&received, payloadSize);
+    if (radio.available(&incomingPipe)) {
+        radio.read(&received, radio.getPayloadSize());
 
         if (received.messageId == 0 || received.command == UNKNOWN) {
             // Received a blank message.  Just ignore.
@@ -144,7 +155,7 @@ bool RadioController::getMessage(Payload &received) {
         Serial.print(" Received: ");
         println(received);
 
-        if (received.id == id && received.id != VALUE_UNSET) {
+        if (received.id == id && id != VALUE_UNSET) {
             Serial.println("Received id was same as my own id.  Ignoring.");
             return false;
         }
@@ -166,12 +177,13 @@ bool RadioController::getMessage(Payload &received) {
 }
 
 bool RadioController::sendAck(const Payload &originalMessage) {
-    Payload ackMessage;
-    ackMessage.messageId = getNextMessageId();
-    ackMessage.id = id;
-    ackMessage.toId = originalMessage.id;
-    ackMessage.command = ACK;
-    return broadcastCommand(ackMessage, false);
+    // Payload ackMessage;
+    // ackMessage.messageId = getNextMessageId();
+    // ackMessage.id = id;
+    // ackMessage.toId = originalMessage.id;
+    // ackMessage.command = ACK;
+    // return broadcastCommand(ackMessage, false);
+    return false;
 }
 
 bool RadioController::broadcastCommand(Command command) {
@@ -209,62 +221,72 @@ bool RadioController::broadcastCommand(const Payload &payload, boolean ack) {
   }
 
   radio.stopListening();
-  if (payload.command == ACK && !ACK_ON_BROADCAST_CHANNEL) {
+  if (ack) {
     radio.openWritingPipe(ackAddress);
   } else {
     radio.openWritingPipe(sendAddress);
   }
   
-  radio.write(&payload, payloadSize);
-  unsigned long messageSentTime = millis();
-  // delayMicroseconds(250);
-
-  if (ack && !ACK_ON_BROADCAST_CHANNEL) {
-    radio.openReadingPipe(ACK_PIPE, ackAddress);
-  }
-  radio.startListening();
+  bool received = radio.write(&payload, payloadSize, !ack);
   if (ack) {
-    boolean ackReceived = false;
-    int retries = 0;
-    Payload incomingMessage;
-    while (!ackReceived && retries < BROADCAST_RETRIES) {
-      if (radioFailed()) {
-        Serial.println("radio failed while in loop");
-        configureRadioForAckReading();
-      }
-      if (radio.available()) {
-        radio.read(&incomingMessage, payloadSize);
-        if (incomingMessage.command == ACK && incomingMessage.toId == id) {
-          // Serial.println("ACK received");
-          ackReceived = true;
-        } else {
-          Serial.print("Waiting for ack, but another message was received instead: ");
-          println(incomingMessage);
-        }
-      } else if ((messageSentTime + BROADCAST_RETRY_DELAY) < millis()) {
-        radio.stopListening();
-        radio.openWritingPipe(sendAddress);
-        radio.write(&payload, payloadSize);
-        messageSentTime = millis();
-        retries++;
-        radio.startListening();
-      }
+    if (received) {
+      Serial.println("Sent sucessfully");
+    } else {
+      Serial.println("Message failed");
     }
-    if (ackReceived) {
-      Serial.print("Ack received after retries: ");
-      Serial.println(retries);
-    }
-    if (!ackReceived) {
-      Serial.println("Never received ack for command");
-    }
-
-    if (!ACK_ON_BROADCAST_CHANNEL) {
-      radio.closeReadingPipe(ACK_PIPE);
-    }
-    // radio.startListening();
-    return ackReceived;
   }
-  return true;
+  
+  // unsigned long messageSentTime = millis();
+  // // delayMicroseconds(250);
+
+  // if (ack && !ACK_ON_BROADCAST_CHANNEL) {
+  //   radio.openReadingPipe(ACK_PIPE, ackAddress);
+  // }
+  radio.startListening();
+  // if (ack) {
+  //   // It tends to take some time for the ack to come back.  So delay a bit initially.
+  //   delay(200);
+  //   boolean ackReceived = false;
+  //   int retries = 0;
+  //   Payload incomingMessage;
+  //   while (!ackReceived && retries < BROADCAST_RETRIES) {
+  //     if (radioFailed()) {
+  //       Serial.println("radio failed while in loop");
+  //       configureRadioForAckReading();
+  //     }
+  //     if (radio.available()) {
+  //       radio.read(&incomingMessage, payloadSize);
+  //       if (incomingMessage.command == ACK && incomingMessage.toId == id) {
+  //         // Serial.println("ACK received");
+  //         ackReceived = true;
+  //       } else {
+  //         Serial.print("Waiting for ack, but another message was received instead: ");
+  //         println(incomingMessage);
+  //       }
+  //     } else if ((messageSentTime + BROADCAST_RETRY_DELAY) < millis()) {
+  //       radio.stopListening();
+  //       radio.openWritingPipe(sendAddress);
+  //       radio.write(&payload, payloadSize);
+  //       messageSentTime = millis();
+  //       retries++;
+  //       radio.startListening();
+  //     }
+  //   }
+  //   if (ackReceived) {
+  //     Serial.print("Ack received after retries: ");
+  //     Serial.println(retries);
+  //   }
+  //   if (!ackReceived) {
+  //     Serial.println("Never received ack for command");
+  //   }
+
+  //   if (!ACK_ON_BROADCAST_CHANNEL) {
+  //     radio.closeReadingPipe(ACK_PIPE);
+  //   }
+  //   // radio.startListening();
+  //   return ackReceived;
+  // }
+  return received;
 }
 
 unsigned int RadioController::currentGateCode() {

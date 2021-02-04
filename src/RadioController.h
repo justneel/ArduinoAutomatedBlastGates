@@ -7,14 +7,14 @@
 #include "Constants.h"
 #include "GatePins.h"
 
-const rf24_datarate_e RADIO_DATA_RATE = RF24_250KBPS;
-const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_HIGH;
+const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
+const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_MAX;
 
 const int BROADCAST_RETRIES = 50;
-const unsigned long BROADCAST_RETRY_DELAY = 10;
+const unsigned long BROADCAST_RETRY_DELAY = 100;
 
 const uint8_t BROADCAST_PIPE = 1;
-const uint8_t ACK_PIPE = 2;
+const uint8_t ACK_PIPE = 0;
 
 enum Command {
     UNKNOWN,
