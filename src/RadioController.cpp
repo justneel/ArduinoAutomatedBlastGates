@@ -1,6 +1,8 @@
 #include "RadioController.h"
 #include <limits.h>
 
+const bool ACK_ON_BROADCAST_CHANNEL = true;
+
 void printId(unsigned long id) {
   if (id == VALUE_UNSET) {
     Serial.print("UNSET");
@@ -104,7 +106,9 @@ void RadioController::configureRadioForNormalReading() {
 
 void RadioController::configureRadioForAckReading() {
   configureRadio();
-  radio.openReadingPipe(ACK_PIPE, ackAddress);
+  if (!ACK_ON_BROADCAST_CHANNEL) {
+    radio.openReadingPipe(ACK_PIPE, ackAddress);
+  } 
   radio.startListening();
 }
 
@@ -152,6 +156,10 @@ bool RadioController::getMessage(Payload &received) {
             Serial.println(" Ignoring command");
             return false;
         }
+        if (received.command == ACK) {
+          Serial.println("Received ACK command in getMessage.  Ignoring");
+          return false;
+        }
         return true;
   }
   return false;
@@ -195,22 +203,23 @@ bool RadioController::broadcastCommand(const Payload &payload, boolean ack) {
   Serial.print(" Broadcasting: ");
   println(payload);
 
-  unsigned long messageSentTime = millis();
-
   while (radioFailed()) {
     Serial.println("Radio failed while trying to send out message.");
     configureRadioForNormalReading();
   }
 
   radio.stopListening();
-  if (payload.command == ACK) {
+  if (payload.command == ACK && !ACK_ON_BROADCAST_CHANNEL) {
     radio.openWritingPipe(ackAddress);
   } else {
     radio.openWritingPipe(sendAddress);
   }
+  
   radio.write(&payload, payloadSize);
+  unsigned long messageSentTime = millis();
   // delayMicroseconds(250);
-  if (ack) {
+
+  if (ack && !ACK_ON_BROADCAST_CHANNEL) {
     radio.openReadingPipe(ACK_PIPE, ackAddress);
   }
   radio.startListening();
@@ -222,8 +231,6 @@ bool RadioController::broadcastCommand(const Payload &payload, boolean ack) {
       if (radioFailed()) {
         Serial.println("radio failed while in loop");
         configureRadioForAckReading();
-        radio.openReadingPipe(ACK_PIPE, ackAddress);
-        radio.startListening();
       }
       if (radio.available()) {
         radio.read(&incomingMessage, payloadSize);
@@ -251,8 +258,10 @@ bool RadioController::broadcastCommand(const Payload &payload, boolean ack) {
       Serial.println("Never received ack for command");
     }
 
-    radio.closeReadingPipe(ACK_PIPE);
-    radio.startListening();
+    if (!ACK_ON_BROADCAST_CHANNEL) {
+      radio.closeReadingPipe(ACK_PIPE);
+    }
+    // radio.startListening();
     return ackReceived;
   }
   return true;

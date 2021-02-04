@@ -11,7 +11,7 @@ const rf24_datarate_e RADIO_DATA_RATE = RF24_250KBPS;
 const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_HIGH;
 
 const int BROADCAST_RETRIES = 50;
-const unsigned long BROADCAST_RETRY_DELAY = 50;
+const unsigned long BROADCAST_RETRY_DELAY = 10;
 
 const uint8_t BROADCAST_PIPE = 1;
 const uint8_t ACK_PIPE = 2;
