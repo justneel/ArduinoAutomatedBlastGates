@@ -51,7 +51,6 @@ void setup() {
   gateController.setup();
   radioController.setup();
 
-
   if (mode == DUST_COLLECTOR) {
     turnOffDustCollector();
   }
@@ -69,6 +68,7 @@ void setup() {
       break;
   }
 
+  delay(100);
   radioController.broadcastCommand(HELLO_WORLD);
 }
 

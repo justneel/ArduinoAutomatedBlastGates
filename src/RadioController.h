@@ -13,6 +13,15 @@ const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_MAX;
 const int BROADCAST_RETRIES = 50;
 const unsigned long BROADCAST_RETRY_DELAY = 100;
 
+
+const uint64_t myAddress =  0xDEADBEEFAB;
+const uint64_t sendAddress = myAddress;
+const uint64_t ackAddress = 0xDEADBEEFAD;
+
+const uint8_t CHANNEL = 1;
+// const uint8_t CHANNEL = 124;
+
+
 const uint8_t BROADCAST_PIPE = 1;
 const uint8_t ACK_PIPE = 0;
 

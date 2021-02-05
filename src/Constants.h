@@ -9,9 +9,9 @@ enum Mode {
   BRANCH_GATE
 };
 
-// const Mode mode = MACHINE;
+const Mode mode = MACHINE;
 // const Mode mode = BRANCH_GATE;
-const Mode mode = DUST_COLLECTOR;
+// const Mode mode = DUST_COLLECTOR;
 
 const bool closeGateWhenNotInUse = true;
 
@@ -50,12 +50,6 @@ const unsigned long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 50
 const unsigned long TIME_TO_CALIBRATE_MS = 7000;
 
 const unsigned long DUST_COLLECTOR_ID = 123456789;
-
-const uint64_t myAddress =  0xDEADBEEFAB;
-const uint64_t sendAddress = myAddress;
-const uint64_t ackAddress = 0xDEADBEEFAD;
-
-const uint8_t CHANNEL = 124;
 
 const unsigned long VALUE_UNSET = 0;
 

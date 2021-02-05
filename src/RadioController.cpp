@@ -148,6 +148,7 @@ bool RadioController::getMessage(Payload &received) {
 
         if (received.messageId == 0 || received.command == UNKNOWN) {
             // Received a blank message.  Just ignore.
+            Serial.println("Received blank message");
             return false;
         }
         
