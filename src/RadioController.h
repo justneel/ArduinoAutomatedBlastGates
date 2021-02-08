@@ -8,28 +8,28 @@
 #include "GatePins.h"
 
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
-const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_MAX;
+const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
 
+const unsigned long BROADCAST_RESPONSE_DELAY_MS = 100;
+const unsigned long BROADCAST_RETRY_DELAY_MS = 100;
 const int BROADCAST_RETRIES = 50;
-const unsigned long BROADCAST_RETRY_DELAY = 100;
 
+const uint8_t myAddress =  0xDE;
+const uint8_t sendAddress = myAddress;
+const uint8_t ackAddress = 0xBE;
 
-const uint64_t myAddress =  0xDEADBEEFAB;
-const uint64_t sendAddress = myAddress;
-const uint64_t ackAddress = 0xDEADBEEFAD;
-
-const uint8_t CHANNEL = 1;
+const uint8_t CHANNEL = 3;
 // const uint8_t CHANNEL = 124;
 
 
 const uint8_t BROADCAST_PIPE = 1;
-const uint8_t ACK_PIPE = 0;
+const uint8_t ACK_PIPE = 2;
 
 enum Command {
     UNKNOWN,
-    ACK,
     RUNNING,
     NO_LONGER_RUNNING,
+    ACK,
     HELLO_WORLD, // Debugging message sent out when a machine first comes online
     WELCOME, // Response back from the HELLO_WORLD
 };
@@ -40,6 +40,7 @@ struct Payload {
   unsigned long toId = VALUE_UNSET;
   unsigned int gateCode = 0;
   Command command = UNKNOWN;
+  boolean requestACK = false;
 };
 
 const int payloadSize = sizeof(Payload);
@@ -50,24 +51,23 @@ class RadioController {
         void setup();
         void onLoop();
         void configureRadio();
-        void configureRadioForNormalReading();
-        void configureRadioForAckReading();
         bool radioFailed();
         bool broadcastCommand(Command command);
         bool broadcastCommand(Command command, boolean ack);
-        bool sendAck(const Payload &originalMessage);
         bool getMessage(Payload &buff);
 
         unsigned int currentGateCode();
 
-        void print(const Payload &payload);
-        void println(const Payload &payload);
+        // void print(const Payload &payload);
+        // void println(const Payload &payload);
     private:
         RF24 radio = RF24(CE_PIN, CSN_PIN);
         unsigned long currentMessageId = 0;
         unsigned long id = VALUE_UNSET;
-
-        bool broadcastCommand(const Payload &payload, boolean ack);
+        boolean replyToAcks = false;
+        void maybeAck(const Payload &received);
+        bool waitForAckPayload(unsigned long maxWait);
+        bool broadcastCommand(const Payload &payload);
         unsigned long getNextMessageId();
 };
 

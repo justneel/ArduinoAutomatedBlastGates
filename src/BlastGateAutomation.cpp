@@ -6,7 +6,6 @@
 #include "GatePins.h"
 #include "Constants.h"
 #include "RadioController.h"
-#include "Log.h"
 #include <printf.h>
 #include <limits.h>
 
@@ -45,13 +44,23 @@ void setup() {
     pinMode(CURRENT_SENSOR_PIN, INPUT);
   }
 
-  pinMode(DUST_COLLECTOR_PIN, OUTPUT);
-  digitalWrite(DUST_COLLECTOR_PIN, LOW);
+// if (MODE_VIA_PIN) {
+//     pinMode(MODE_PIN, INPUT_PULLUP);
+//     if (digitalRead(MODE_PIN) == HIGH) {
+//       Serial.println("Reassigning to Dust collector");
+//       mode = DUST_COLLECTOR;
+//     } else {
+//       Serial.println("Reassigning to MACHINE");
+//       mode = MACHINE;
+//     }
+//   }
   
   gateController.setup();
   radioController.setup();
 
   if (mode == DUST_COLLECTOR) {
+    pinMode(DUST_COLLECTOR_PIN, OUTPUT);
+    digitalWrite(DUST_COLLECTOR_PIN, LOW);
     turnOffDustCollector();
   }
 
@@ -74,8 +83,6 @@ void setup() {
 
 
 void loop() {
-  radioController.onLoop();
-
   if (mode == MACHINE) {
     double current = currentAmps();
     if (current >= MIN_CURRENT_TO_ACTIVATE) {
@@ -110,6 +117,7 @@ void loop() {
     }
   }
 
+  radioController.onLoop();
   gateController.onLoop();
   checkOtherGates();
 
@@ -130,10 +138,8 @@ void checkOtherGates() {
 }
 
 void processCommand(const Payload &payload) {
-  
   if (payload.command == RUNNING) {
     if (mode == DUST_COLLECTOR) {
-      radioController.sendAck(payload);
       if (!dustCollectorOn) {
         if (payload.gateCode != 0) {
           delay(DUST_COLLECTOR_ON_DELAY_BRANCH);
@@ -173,8 +179,10 @@ void processCommand(const Payload &payload) {
     radioController.broadcastCommand(WELCOME);
   } else if (payload.command == WELCOME) {
     // Do nothing
+  } else if (payload.command == ACK) {
+    // Do nothing
   } else {
-    Serial.print("Unknown");
+    Serial.println("Unknown command");
   }
 }
 
