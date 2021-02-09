@@ -8,8 +8,8 @@
 #include "RadioController.h"
 #include <printf.h>
 #include <limits.h>
-
-void notifyCurrentFlowing();
+#include "StatusController.h"
+#include "Ids.h"
 
 void checkOtherGates();
 void processCommand(const Payload &payload);
@@ -17,9 +17,10 @@ void turnOnDustCollector();
 void turnOffDustCollector();
 double currentAmps();
 
-
-RadioController radioController;
-GateController gateController;
+Ids *ids;
+StatusController *statusController;
+RadioController *radioController;
+GateController *gateController;
 
 bool currentFlowing = false;
 bool dustCollectorOn = false;
@@ -36,7 +37,10 @@ void setup() {
   Serial.println(" ");
   Serial.println("Starting setup");
   
-  // analogReference(INTERNAL);
+  ids = new Ids();
+  statusController = new StatusController();
+  radioController = new RadioController(*statusController, *ids);
+  gateController = new GateController(*statusController, *ids);
 
   if (USE_FAKE_CURRENT) {
     pinMode(CURRENT_SENSOR_PIN, INPUT_PULLUP);  
@@ -55,8 +59,10 @@ void setup() {
 //     }
 //   }
   
-  gateController.setup();
-  radioController.setup();
+  ids->setup();
+  statusController->setup();
+  gateController->setup();
+  radioController->setup();
 
   if (mode == DUST_COLLECTOR) {
     pinMode(DUST_COLLECTOR_PIN, OUTPUT);
@@ -78,7 +84,7 @@ void setup() {
   }
 
   delay(100);
-  radioController.broadcastCommand(HELLO_WORLD);
+  radioController->broadcastCommand(HELLO_WORLD);
 }
 
 
@@ -92,16 +98,19 @@ void loop() {
         Serial.print("   ");
         lastBroadcastTime = millis();
         currentFlowing = true;
-        gateController.openGate();
-        notifyCurrentFlowing();
+        gateController->openGate();
+        statusController->setGateStatus(true);
+        radioController->broadcastCommand(RUNNING, true);
       }
     } else if (currentFlowing) {
       Serial.println("Current has stopped flowing");
+      statusController->setGateStatus(true);
       currentFlowing = false;
       currentStoppedTime = millis();
-      radioController.broadcastCommand(NO_LONGER_RUNNING, false);
+      statusController->setGateStatus(false);
+      radioController->broadcastCommand(NO_LONGER_RUNNING, false);
     } else if (closeGateWhenNotInUse && currentStoppedTime != VALUE_UNSET && (currentStoppedTime + CLOSE_GATE_DELAY) < millis()) {
-      gateController.closeGate();
+      gateController->closeGate();
       currentStoppedTime = VALUE_UNSET;
     }
   } else if (mode == DUST_COLLECTOR) {
@@ -113,12 +122,14 @@ void loop() {
     if (lastOnBroadcastReceivedTime != VALUE_UNSET && (lastOnBroadcastReceivedTime + CLOSE_BRANCH_GATE_DELAY) < millis()) {
       Serial.println("Closing branch gate");
       lastOnBroadcastReceivedTime = VALUE_UNSET;
-      gateController.closeGate();
+      gateController->closeGate();
     }
   }
 
-  radioController.onLoop();
-  gateController.onLoop();
+  radioController->onLoop();
+  gateController->onLoop();
+  statusController->onLoop();
+
   checkOtherGates();
 
   if (SLOW_DOWN_LOOP) {
@@ -126,13 +137,9 @@ void loop() {
   }
 }
 
-void notifyCurrentFlowing() {
-  radioController.broadcastCommand(RUNNING, true);
-}
-
 void checkOtherGates() {
   Payload received;
-  if (radioController.getMessage(received)) {
+  if (radioController->getMessage(received)) {
     processCommand(received);
   }
 }
@@ -149,19 +156,19 @@ void processCommand(const Payload &payload) {
       lastOnBroadcastReceivedTime = millis();
     } else if (mode == MACHINE) {
       if (!currentFlowing) {
-        if (!gateController.isClosed()) {
+        if (!gateController->isClosed()) {
           Serial.println("Remote is on, and I am not.  Closing my gate.");
-          gateController.closeGate();
+          gateController->closeGate();
         }
       } else {
         Serial.println("Current is flowing, so not closing my gate");
       }
     } else if (mode == BRANCH_GATE) {
-      int myCode = radioController.currentGateCode();
+      int myCode = ids->currentGateCode();
       if ((payload.gateCode & myCode) != 0) {
-        if (!gateController.isOpen()) {
+        if (!gateController->isOpen()) {
           Serial.println("I matched incoming code.  Opening my gate");
-          gateController.openGate();
+          gateController->openGate();
         }
         lastOnBroadcastReceivedTime = millis();
       } else {
@@ -176,7 +183,7 @@ void processCommand(const Payload &payload) {
     // no action needed
   } else if (payload.command == HELLO_WORLD) {
     // Lets welcome our new guest.
-    radioController.broadcastCommand(WELCOME);
+    radioController->broadcastCommand(WELCOME);
   } else if (payload.command == WELCOME) {
     // Do nothing
   } else if (payload.command == ACK) {
@@ -190,11 +197,13 @@ void turnOnDustCollector() {
   dustCollectorOn = true;
   Serial.println("Turning on dust collector");
   digitalWrite(DUST_COLLECTOR_PIN, HIGH);
+  statusController->setGateStatus(true);
 }
 
 void turnOffDustCollector() {
   dustCollectorOn = false;
   Serial.println("Turning off dust collector");
+  statusController->setGateStatus(false);
   digitalWrite(DUST_COLLECTOR_PIN, LOW);
 }
 

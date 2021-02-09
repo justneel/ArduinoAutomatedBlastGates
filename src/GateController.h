@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include <Servo.h>
+#include "StatusController.h"
+#include "Ids.h"
 
 enum GateState {
   OPEN,
@@ -23,7 +25,7 @@ struct GatePositions {
 
 class GateController {
     public:
-        GateController();
+        GateController(StatusController &sc, Ids &ids)  : statusController(sc), ids(ids) {};
         void setup();
         void onLoop();
         void openGate();
@@ -31,14 +33,16 @@ class GateController {
         bool isClosed();
         bool isOpen();
     private:
+        StatusController &statusController;
+        Ids &ids;
+        
         GateState currentGateState;
         GatePositions gatePositions;
 
         bool inOpenCalibration = false;
         bool inCloseCalibration = false;
         unsigned long calibrationUpdateTime = 0;
-        const int openPotPin;
-        const int closedPotPin;
+        
 
         // int lastOpenPositionReading;
         // int lastClosedPositionReading;

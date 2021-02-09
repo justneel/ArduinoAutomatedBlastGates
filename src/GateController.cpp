@@ -28,8 +28,6 @@ int averageAnalogRead(int pin) {
     return total / numReads;
 }
 
-GateController::GateController() : openPotPin(OPEN_POT_PIN), closedPotPin(CLOSED_POT_PIN) {};
-
 void GateController::setup() {
     if (mode == DUST_COLLECTOR) {
         return;
@@ -43,11 +41,11 @@ void GateController::setup() {
         Serial.print(" closed=");
         Serial.println(gatePositions.closedPosition);
     } else {
-        pinMode(openPotPin, INPUT);
-        pinMode(closedPotPin, INPUT);
+        pinMode(OPEN_POT_PIN, INPUT);
+        pinMode(CLOSED_POT_PIN, INPUT);
 
-        lastOpenPinAnalogReading = averageAnalogRead(openPotPin);
-        lastClosedPinAnalogReading = averageAnalogRead(closedPotPin);
+        lastOpenPinAnalogReading = averageAnalogRead(OPEN_POT_PIN);
+        lastClosedPinAnalogReading = averageAnalogRead(CLOSED_POT_PIN);
 
         currentServoPosition = lastClosedPinAnalogReading;
         servo.write(analogToServoPosition(currentServoPosition));
@@ -62,7 +60,7 @@ CalibrateStatus GateController::calibrate(int pin, int& lastReadValue, bool& inC
             || (inCalibration && diff >= IN_CALIBRATION_ANALOG_FLOAT_AMOUNT)) {
         if (!inCalibration) {
             Serial.print("Entering calibration for: ");
-            if (pin == openPotPin) {
+            if (pin == OPEN_POT_PIN) {
                 Serial.println("open position");
             } else {
                 Serial.println("close position");
@@ -144,22 +142,22 @@ void GateController::onLoop() {
         CalibrateStatus status;
         bool calibrationDone = false;
         if (inOpenCalibration) {
-            status = calibrate(openPotPin, lastOpenPinAnalogReading, inOpenCalibration);
+            status = calibrate(OPEN_POT_PIN, lastOpenPinAnalogReading, inOpenCalibration);
             if (status == LEAVING_CALIBRATION) {
                 Serial.println("Finished open calibration");
                 calibrationDone = true;
             }
         } else if (inCloseCalibration) {
-            status = calibrate(closedPotPin, lastClosedPinAnalogReading, inCloseCalibration);
+            status = calibrate(CLOSED_POT_PIN, lastClosedPinAnalogReading, inCloseCalibration);
             if (status == LEAVING_CALIBRATION) {
                 Serial.println("Finished closed calibration");
                 calibrationDone = true;
             }
         } else {
             // check both
-            status = calibrate(openPotPin, lastOpenPinAnalogReading, inOpenCalibration);
+            status = calibrate(OPEN_POT_PIN, lastOpenPinAnalogReading, inOpenCalibration);
             if (status != IN_CALIBRATION) {
-                calibrate(closedPotPin, lastClosedPinAnalogReading, inCloseCalibration);
+                calibrate(CLOSED_POT_PIN, lastClosedPinAnalogReading, inCloseCalibration);
             }
         }
 

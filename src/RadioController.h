@@ -6,6 +6,8 @@
 #include <RF24.h>
 #include "Constants.h"
 #include "GatePins.h"
+#include "StatusController.h"
+#include "Ids.h"
 
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
 const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
@@ -50,7 +52,7 @@ const int payloadSize = sizeof(Payload);
 
 class RadioController {
     public:
-        RadioController() {};
+        RadioController(StatusController &statusController, Ids &ids) : statusController(statusController), ids(ids) {};
         void setup();
         void onLoop();
         void configureRadio();
@@ -59,14 +61,15 @@ class RadioController {
         bool broadcastCommand(Command command, boolean ack);
         bool getMessage(Payload &buff);
 
-        unsigned int currentGateCode();
-
         // void print(const Payload &payload);
         // void println(const Payload &payload);
     private:
+        StatusController &statusController;
+        Ids &ids;
+
         RF24 radio = RF24(CE_PIN, CSN_PIN);
         unsigned long currentMessageId = 0;
-        unsigned long id = VALUE_UNSET;
+        
         boolean replyToAcks = false;
         void maybeAck(const Payload &received);
         bool waitForAckPayload(unsigned long maxWait);

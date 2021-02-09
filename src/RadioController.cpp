@@ -5,16 +5,6 @@
 void RadioController::setup() {
     replyToAcks = mode == DUST_COLLECTOR;
     configureRadio();
-
-    if (mode == DUST_COLLECTOR) {
-        id = DUST_COLLECTOR_ID;
-    } else {
-        randomSeed(analogRead(A0));
-
-        for (int i = 0; i < BRANCH_PINS_LENGTH; i++) {
-            pinMode(BRANCH_PINS[i], INPUT_PULLUP);
-        }
-    }
 }
 
 void RadioController::onLoop() {
@@ -126,15 +116,16 @@ bool RadioController::getMessage(Payload &received) {
         println(received);
         maybeAck(received);
 
-        if (received.id == id && id != VALUE_UNSET) {
+        unsigned long myId = ids.getID();
+        if (received.id == myId && myId != VALUE_UNSET) {
             Serial.println("Received id was same as my own id.  Ignoring.");
             return false;
         }
-        if (received.toId != VALUE_UNSET && received.toId != id) {
+        if (received.toId != VALUE_UNSET && received.toId != ids.getID()) {
             Serial.print("Message was directed to another id: ");
             printId(received.id);
             Serial.print(" vs my id: ");
-            printId(id);
+            printId(myId);
             Serial.println(" Ignoring command");
             return false;
         }
@@ -143,26 +134,20 @@ bool RadioController::getMessage(Payload &received) {
   return false;
 }
 
-
 bool RadioController::broadcastCommand(Command command) {
     return broadcastCommand(command, false);
 }
 
 bool RadioController::broadcastCommand(Command command, boolean ack) {
-    if (command == RUNNING && id == VALUE_UNSET) {
-        // If the first run is not from when we just started, we can use the
-        // millis() as a good random seed.
-        if (millis() > 10000) {
-            randomSeed(millis());
-        }
-        id = abs(random(2147483600));
+    if (command == RUNNING) {
+      ids.populateId();
     }
 
     Payload sendPayload;
     sendPayload.messageId = getNextMessageId();
     sendPayload.command = command;
-    sendPayload.id = id;
-    sendPayload.gateCode = currentGateCode();
+    sendPayload.id = ids.getID();
+    sendPayload.gateCode = ids.currentGateCode();
     sendPayload.requestACK = ack;
 
     return broadcastCommand(sendPayload);   
@@ -186,6 +171,7 @@ bool RadioController::broadcastCommand(const Payload &payload) {
       } else {
         Serial.println("Failed to send message");
       }
+      statusController.setTransmissionStatus(success);
     }
     radio.startListening();
     return success;
@@ -229,6 +215,7 @@ bool RadioController::broadcastCommand(const Payload &payload) {
     } else {
       Serial.println("Message failed");
     }
+    statusController.setTransmissionStatus(received);
   }
   return received;
 }
@@ -238,7 +225,7 @@ void RadioController::maybeAck(const Payload &received) {
   if (!USE_CHIP_ACK && replyToAcks && received.requestACK) {
     Payload ackPayload;
     ackPayload.messageId = getNextMessageId();
-    ackPayload.id = id;
+    ackPayload.id = ids.getID();
     ackPayload.toId = received.id;
     ackPayload.command = ACK;
     broadcastCommand(ackPayload);
@@ -257,7 +244,7 @@ bool RadioController::waitForAckPayload(unsigned long maxWait) {
     }
     if (radio.available(&incomingPipe)) {
       radio.read(&received, (dynamicPayloadsEnabled) ? radio.getDynamicPayloadSize() : radio.getPayloadSize());
-      if (received.command == ACK && received.toId == id) {
+      if (received.command == ACK && received.toId == ids.getID()) {
         return true;
       } else {
         Serial.print("Receieved an unexpected message while waiting for ack: ");
@@ -270,16 +257,3 @@ bool RadioController::waitForAckPayload(unsigned long maxWait) {
   return false;
 }
 
-unsigned int RadioController::currentGateCode() {
-    if (mode == DUST_COLLECTOR) {
-        return 0;
-    }
-    unsigned int value = 0;
-    for (int i = 0; i < BRANCH_PINS_LENGTH; i++) {
-        value *= 2;
-        if (digitalRead(BRANCH_PINS[i]) == LOW) {
-        value++;
-        }
-    }
-    return value;
-}

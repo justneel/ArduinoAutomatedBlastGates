@@ -25,6 +25,6 @@ const int MODE_PIN = 8;
 
 const int RED_LED = A0;
 const int GREEN_LED = A1;
-const int BLUR_LED = A2;
+const int BLUE_LED = A2;
 
 #endif
