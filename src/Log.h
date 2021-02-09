@@ -2,7 +2,7 @@
 #define log_h
 
 
-void printId(unsigned long id) {
+const void printId(unsigned long id) {
   if (id == VALUE_UNSET) {
     Serial.print("UNSET");
   } else {
@@ -10,7 +10,7 @@ void printId(unsigned long id) {
   }
 }
 
-void print(const Payload &payload) {
+const void print(const Payload &payload) {
   Serial.print("Payload {");
   Serial.print(" messageId=");
   Serial.print(payload.messageId);
@@ -51,7 +51,7 @@ void print(const Payload &payload) {
   Serial.print(" }");
 }
 
-void println(const Payload &payload) {
+const void println(const Payload &payload) {
   print(payload);
   Serial.println(" ");
 }

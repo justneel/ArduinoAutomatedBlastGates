@@ -10,9 +10,12 @@
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
 const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
 
-const unsigned long BROADCAST_RESPONSE_DELAY_MS = 100;
-const unsigned long BROADCAST_RETRY_DELAY_MS = 100;
-const int BROADCAST_RETRIES = 50;
+const bool USE_CHIP_ACK = true;
+// const bool SEPARATE_PIPE_FOR_ACK = true;
+
+const unsigned long BROADCAST_RESPONSE_DELAY_MS = 10;
+const unsigned long BROADCAST_RETRY_DELAY_MS = 10;
+const int BROADCAST_RETRIES = 10;
 
 const uint8_t myAddress =  0xDE;
 const uint8_t sendAddress = myAddress;
@@ -69,6 +72,7 @@ class RadioController {
         bool waitForAckPayload(unsigned long maxWait);
         bool broadcastCommand(const Payload &payload);
         unsigned long getNextMessageId();
+        bool dynamicPayloadsEnabled = false;
 };
 
 #endif

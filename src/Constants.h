@@ -9,9 +9,9 @@ enum Mode {
   BRANCH_GATE
 };
 
-// const Mode mode = MACHINE;
+const Mode mode = MACHINE;
 // const Mode mode = BRANCH_GATE;
-const Mode mode = DUST_COLLECTOR;
+// const Mode mode = DUST_COLLECTOR;
 
 // const bool MODE_VIA_PIN = true; // NON-DEBUG = false
 
@@ -51,7 +51,7 @@ const unsigned long CLOSE_BRANCH_GATE_DELAY = DUST_COLLECTOR_TURN_OFF_DELAY + 50
  */
 const unsigned long TIME_TO_CALIBRATE_MS = 7000;
 
-const unsigned long DUST_COLLECTOR_ID = 123456789;
+const unsigned long DUST_COLLECTOR_ID = 123321;
 
 const unsigned long VALUE_UNSET = 0;
 
