@@ -19,12 +19,22 @@ void StatusController::onLoop() {
     if (inCalibrationMode) {
         if ((lastCalibrationBlinkChange + CALIBRATION_BLINK_MS) < millis()) {
             lastCalibrationBlinkChange = millis();
-            digitalWrite(GREEN_LED, (calibrationBlinkOn) ? LOW : HIGH);
+            digitalWrite(BLUE_LED, (calibrationBlinkOn) ? LOW : HIGH);
             calibrationBlinkOn = !calibrationBlinkOn;
         }
     } else {
-        digitalWrite(GREEN_LED, HIGH);
+        digitalWrite(BLUE_LED, LOW);
     }
+
+    if ((SYSTEM_ACTIVE_MS + lastActiveTime) > millis()) {
+        digitalWrite(GREEN_LED, HIGH);
+    } else {
+        digitalWrite(GREEN_LED, LOW);
+    }
+}
+
+void StatusController::onSystemActive() {
+    lastActiveTime = millis();
 }
 
 void StatusController::setTransmissionStatus(bool success) {

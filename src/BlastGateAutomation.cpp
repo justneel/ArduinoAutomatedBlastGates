@@ -100,6 +100,7 @@ void loop() {
         currentFlowing = true;
         gateController->openGate();
         statusController->setGateStatus(true);
+        statusController->onSystemActive();
         radioController->broadcastCommand(RUNNING, true);
       }
     } else if (currentFlowing) {
@@ -146,6 +147,7 @@ void checkOtherGates() {
 
 void processCommand(const Payload &payload) {
   if (payload.command == RUNNING) {
+    statusController->onSystemActive();
     if (mode == DUST_COLLECTOR) {
       if (!dustCollectorOn) {
         if (payload.gateCode != 0) {
@@ -184,6 +186,7 @@ void processCommand(const Payload &payload) {
   } else if (payload.command == HELLO_WORLD) {
     // Lets welcome our new guest.
     radioController->broadcastCommand(WELCOME);
+    statusController->onSystemActive();
   } else if (payload.command == WELCOME) {
     // Do nothing
   } else if (payload.command == ACK) {
