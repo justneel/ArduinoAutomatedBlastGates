@@ -10,20 +10,21 @@ void StatusController::setup() {
     digitalWrite(RED_LED, LOW);
     digitalWrite(BLUE_LED, LOW);
     digitalWrite(GREEN_LED, HIGH);
+
+    radioFailureBlinker.setup();
+    calibrationBlinker.setup();
 }
 
 void StatusController::onLoop() {
-    if (lastFailedTranmissionTime + FAILED_TRANSMISSION_LIGHT_ON_TIME_MS < millis()) {
-        digitalWrite(RED_LED, LOW);
-    }
-    if (inCalibrationMode) {
-        if ((lastCalibrationBlinkChange + CALIBRATION_BLINK_MS) < millis()) {
-            lastCalibrationBlinkChange = millis();
-            digitalWrite(BLUE_LED, (calibrationBlinkOn) ? LOW : HIGH);
-            calibrationBlinkOn = !calibrationBlinkOn;
+    radioFailureBlinker.onLoop();
+    calibrationBlinker.onLoop();
+
+    if (!radioFailureBlinker.isEnabled()) {
+        if (lastFailedTranmissionTime + FAILED_TRANSMISSION_LIGHT_ON_TIME_MS < millis()) {
+            digitalWrite(RED_LED, LOW);
+        } else {
+            digitalWrite(RED_LED, HIGH);
         }
-    } else {
-        digitalWrite(BLUE_LED, LOW);
     }
 
     if ((SYSTEM_ACTIVE_MS + lastActiveTime) > millis()) {
@@ -35,6 +36,10 @@ void StatusController::onLoop() {
 
 void StatusController::onSystemActive() {
     lastActiveTime = millis();
+}
+
+void StatusController::setRadioInFailure(bool inFailure) {
+    radioFailureBlinker.setEnabled(inFailure);
 }
 
 void StatusController::setTransmissionStatus(bool success) {
@@ -52,5 +57,5 @@ void StatusController::setGateStatus(bool open) {
 }
 
 void StatusController::setCalibrationMode(bool inCalibration) {
-    this->inCalibrationMode = inCalibration;
+    calibrationBlinker.setEnabled(inCalibration);
 }

@@ -18,6 +18,8 @@ void RadioController::onLoop() {
 void RadioController::configureRadio() {
   radio.failureDetected = false;
   while (!radio.begin() || !radio.isChipConnected()) {
+    statusController.setRadioInFailure(true);
+    // TODO: failure LED
     Serial.print(millis() / 1000);
     Serial.println(" Waiting for radio to start");
     // radio.printDetails();
@@ -64,7 +66,7 @@ void RadioController::configureRadio() {
   }
 
   radio.startListening();
-
+  statusController.setRadioInFailure(false);
   // Serial.println("------------ After Configure -----------");
   // radio.printPrettyDetails();
   // Serial.println("----------------------------------------");
@@ -87,6 +89,7 @@ bool RadioController::radioFailed() {
     // radio.printPrettyDetails();
     // Serial.println("----------------------------------------");
     radio.failureDetected = true;
+    statusController.setRadioInFailure(true);
     return true;
   }
   return false;

@@ -213,10 +213,21 @@ void turnOffDustCollector() {
 // Derived from: https://arduino.stackexchange.com/questions/19301/acs712-sensor-reading-for-ac-current
 double currentAmps() {
   if (USE_FAKE_CURRENT) {
-    if (analogRead(CURRENT_SENSOR_PIN) > 512) {
-      return 0;
+    bool isHigh = analogRead(CURRENT_SENSOR_PIN) > 512;
+    double onCurrent = MIN_CURRENT_TO_ACTIVATE + 5;
+    if (FAKE_CURRENT_DEFAULT_ON) {
+      if (isHigh) {
+        return onCurrent;
+      } else {
+        return 0;
+      }
+    } else {
+      if (isHigh) {
+        return 0;
+      } else {
+        return onCurrent;
+      }
     }
-    return MIN_CURRENT_TO_ACTIVATE + 5;
   }
 
   int rVal = 0;

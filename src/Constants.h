@@ -17,9 +17,10 @@ const Mode mode = MACHINE;
 
 const bool closeGateWhenNotInUse = true;
 
-const bool SERIAL_CALIBRATION = true;
+const bool SERIAL_CALIBRATION = false;
 
 const bool USE_FAKE_CURRENT = true; // NON-DEBUG = false
+const bool FAKE_CURRENT_DEFAULT_ON = true;
 
 const bool SLOW_DOWN_LOOP = false; // NON-DEBUG = false
 

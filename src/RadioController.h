@@ -12,7 +12,7 @@
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
 const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
 
-const bool USE_CHIP_ACK = true;
+const bool USE_CHIP_ACK = false;
 // const bool SEPARATE_PIPE_FOR_ACK = true;
 
 const unsigned long BROADCAST_RESPONSE_DELAY_MS = 10;
