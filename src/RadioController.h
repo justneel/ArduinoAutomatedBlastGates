@@ -10,25 +10,25 @@
 #include "Ids.h"
 
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
-const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_LOW;
+const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_MAX;
 
 const bool USE_CHIP_ACK = false;
 // const bool SEPARATE_PIPE_FOR_ACK = true;
 
-const unsigned long BROADCAST_RESPONSE_DELAY_MS = 10;
-const unsigned long BROADCAST_RETRY_DELAY_MS = 10;
-const int BROADCAST_RETRIES = 10;
+const unsigned long BROADCAST_RESPONSE_DELAY_MS = 100;
+const unsigned long BROADCAST_RETRY_DELAY_MS = 300;
+const int BROADCAST_RETRIES = 20;
 
 const uint8_t myAddress =  0xDE;
 const uint8_t sendAddress = myAddress;
-const uint8_t ackAddress = 0xBE;
+// const uint8_t ackAddress = 0xBE;
 
 const uint8_t CHANNEL = 3;
 // const uint8_t CHANNEL = 124;
 
 
 const uint8_t BROADCAST_PIPE = 1;
-const uint8_t ACK_PIPE = 2;
+// const uint8_t ACK_PIPE = 2;
 
 enum Command {
     UNKNOWN,

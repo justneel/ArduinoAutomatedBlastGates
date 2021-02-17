@@ -105,7 +105,6 @@ void loop() {
       }
     } else if (currentFlowing) {
       Serial.println("Current has stopped flowing");
-      statusController->setGateStatus(true);
       currentFlowing = false;
       currentStoppedTime = millis();
       statusController->setGateStatus(false);

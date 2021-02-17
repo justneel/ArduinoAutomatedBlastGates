@@ -41,9 +41,9 @@ void RadioController::configureRadio() {
   // radio.flush_tx();
 
   radio.openReadingPipe(BROADCAST_PIPE, myAddress);
-  if (mode != DUST_COLLECTOR && !USE_CHIP_ACK) {
-    radio.openReadingPipe(ACK_PIPE, ackAddress);
-  }
+  // if (mode != DUST_COLLECTOR && !USE_CHIP_ACK) {
+  //   radio.openReadingPipe(ACK_PIPE, ackAddress);
+  // }
 
   if (USE_CHIP_ACK) {
     radio.setAutoAck(true);
@@ -194,18 +194,20 @@ bool RadioController::broadcastCommand(const Payload &payload) {
       return false;
     }
     radio.stopListening();
-    if (payload.command == ACK) {
-      radio.openWritingPipe(ackAddress);
-    } else {
+    // if (payload.command == ACK) {
+    //   radio.openWritingPipe(ackAddress);
+    // } else {
       radio.openWritingPipe(sendAddress);
-    }
-    radio.writeFast(&payload, payloadSize);
-    if (!radio.txStandBy(500)) {
-      Serial.println("txStandby failed");
-    }
+    // }
+    radio.write(&payload, payloadSize);
+    // radio.writeFast(&payload, payloadSize);
+    // if (!radio.txStandBy(500)) {
+    //   Serial.println("txStandby failed");
+    // }
     retries++;
     radio.startListening();
     if (payload.requestACK) {
+      delay(BROADCAST_RESPONSE_DELAY_MS);
       received = waitForAckPayload(BROADCAST_RETRY_DELAY_MS);
     }
   } while (!received && retries < BROADCAST_RETRIES);

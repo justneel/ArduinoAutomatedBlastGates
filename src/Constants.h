@@ -29,7 +29,7 @@ const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 5;
 
 const double MIN_CURRENT_TO_ACTIVATE = 2.0;
 
-const unsigned long TIME_BETWEEN_ON_BROADCASTS = 3000;
+const unsigned long TIME_BETWEEN_ON_BROADCASTS = 5000;
 
 /**
  * When we are the dust collector, this is the delay after the last 

@@ -26,6 +26,9 @@ void StatusController::onLoop() {
             digitalWrite(RED_LED, HIGH);
         }
     }
+    if (!calibrationBlinker.isEnabled()) {
+        digitalWrite(BLUE_LED, gateStatus ? HIGH : LOW);
+    }
 
     if ((SYSTEM_ACTIVE_MS + lastActiveTime) > millis()) {
         digitalWrite(GREEN_LED, HIGH);
@@ -53,7 +56,7 @@ void StatusController::setTransmissionStatus(bool success) {
 }
 
 void StatusController::setGateStatus(bool open) {
-    digitalWrite(BLUE_LED, open ? HIGH : LOW);
+    gateStatus = open;
 }
 
 void StatusController::setCalibrationMode(bool inCalibration) {

@@ -24,6 +24,7 @@ class StatusController {
     private:
         unsigned long lastActiveTime = 0;
         unsigned long lastFailedTranmissionTime = 0;
+        bool gateStatus = false;
         Blinker radioFailureBlinker;
         Blinker calibrationBlinker;
 };
