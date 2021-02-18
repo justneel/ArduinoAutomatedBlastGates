@@ -20,6 +20,8 @@ const void print(const Payload &payload) {
   printId(payload.toId);
   Serial.print(" gateCode=");
   Serial.print(payload.gateCode);
+  Serial.print(" retryCount=");
+  Serial.print(payload.retryCount);
   Serial.print(" requestACK=");
   Serial.print(payload.requestACK);
   Serial.print(" command=");

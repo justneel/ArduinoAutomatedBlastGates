@@ -22,6 +22,14 @@ void Blinker::onLoop() {
 
 void Blinker::setEnabled(bool enabled) {
     this->enabled = enabled;
+    lastBlinkMs = millis();
+    if (enabled) {
+        digitalWrite(pin, HIGH);
+        ledOn = true;
+    } else {
+        digitalWrite(pin, LOW);
+        ledOn = false;
+    }
 }
 
 bool Blinker::isEnabled() {

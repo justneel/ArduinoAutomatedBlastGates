@@ -2,6 +2,8 @@
 #include <limits.h>
 #include "Log.h"
 
+const bool LOG_OUTGOING_ACKS = false;
+
 void RadioController::setup() {
     replyToAcks = mode == DUST_COLLECTOR;
     configureRadio();
@@ -18,8 +20,8 @@ void RadioController::onLoop() {
 void RadioController::configureRadio() {
   radio.failureDetected = false;
   while (!radio.begin() || !radio.isChipConnected()) {
+  // while (!radio.begin()) {
     statusController.setRadioInFailure(true);
-    // TODO: failure LED
     Serial.print(millis() / 1000);
     Serial.println(" Waiting for radio to start");
     // radio.printDetails();
@@ -31,6 +33,7 @@ void RadioController::configureRadio() {
 
   if (!radio.setDataRate(RADIO_DATA_RATE)) {
     Serial.println("Could not set the data rate");
+    statusController.setRadioInFailure(true);
     radio.failureDetected = true;
     return;
   }
@@ -41,9 +44,9 @@ void RadioController::configureRadio() {
   // radio.flush_tx();
 
   radio.openReadingPipe(BROADCAST_PIPE, myAddress);
-  // if (mode != DUST_COLLECTOR && !USE_CHIP_ACK) {
-  //   radio.openReadingPipe(ACK_PIPE, ackAddress);
-  // }
+  if (mode != DUST_COLLECTOR && !USE_CHIP_ACK && SEPARATE_PIPE_FOR_ACK) {
+    radio.openReadingPipe(ACK_PIPE, ackAddress);
+  }
 
   if (USE_CHIP_ACK) {
     radio.setAutoAck(true);
@@ -77,7 +80,7 @@ bool RadioController::radioFailed() {
       || radio.getDataRate() != RADIO_DATA_RATE 
       || radio.getPALevel() != RADIO_POWER_LEVEL) {
         if (radio.failureDetected) {
-          Serial.print("Failure from failureDetected.   ");
+          Serial.print("Failure from internal boolean.   ");
         } else if (radio.getDataRate() != RADIO_DATA_RATE) {
           Serial.print("Failure from data rate change.   ");
         } else if (radio.getPALevel() != RADIO_POWER_LEVEL) {
@@ -106,7 +109,7 @@ unsigned long RadioController::getNextMessageId() {
 bool RadioController::getMessage(Payload &received) {
     uint8_t incomingPipe;
     if (radio.available(&incomingPipe)) {
-        radio.read(&received, (dynamicPayloadsEnabled) ? radio.getDynamicPayloadSize() : radio.getPayloadSize());
+        radio.read(&received, (dynamicPayloadsEnabled) ? radio.getDynamicPayloadSize() : payloadSize);
 
         if (received.messageId == 0 || received.command == UNKNOWN) {
             // Received a blank message.  Just ignore.
@@ -156,11 +159,13 @@ bool RadioController::broadcastCommand(Command command, boolean ack) {
     return broadcastCommand(sendPayload);   
 }
 
-bool RadioController::broadcastCommand(const Payload &payload) {
+bool RadioController::broadcastCommand(Payload &payload) {
   
-  Serial.print(millis() / 1000.0);
-  Serial.print(" Broadcasting: ");
-  println(payload);
+  if (payload.command != ACK || LOG_OUTGOING_ACKS) {
+    Serial.print(millis() / 1000.0);
+    Serial.print(" Broadcasting: ");
+    println(payload);
+  }
 
   if (USE_CHIP_ACK) {
     radio.stopListening();
@@ -181,41 +186,35 @@ bool RadioController::broadcastCommand(const Payload &payload) {
   }
 
   boolean received = !payload.requestACK;
-  // boolean received = true;
-  int retries = 0;
   do {
-    while (radioFailed() && retries < BROADCAST_RETRIES) {
+    while (radioFailed() && payload.retryCount < BROADCAST_RETRIES) {
       Serial.println("Radio failed while trying to send out message.");
-      retries++;
+      payload.retryCount++;
       configureRadio();
     }
-    if (retries >= BROADCAST_RETRIES) {
+    if (payload.retryCount >= BROADCAST_RETRIES) {
       Serial.println("Could not configure radio.  Dropping message");
       return false;
     }
     radio.stopListening();
-    // if (payload.command == ACK) {
-    //   radio.openWritingPipe(ackAddress);
-    // } else {
+    if (SEPARATE_PIPE_FOR_ACK && payload.command == ACK) {
+      radio.openWritingPipe(ackAddress);
+    } else {
       radio.openWritingPipe(sendAddress);
-    // }
+    }
     radio.write(&payload, payloadSize);
-    // radio.writeFast(&payload, payloadSize);
-    // if (!radio.txStandBy(500)) {
-    //   Serial.println("txStandby failed");
-    // }
-    retries++;
+    payload.retryCount++;
     radio.startListening();
     if (payload.requestACK) {
-      delay(BROADCAST_RESPONSE_DELAY_MS);
+      // delay(BROADCAST_RESPONSE_DELAY_MS);
       received = waitForAckPayload(BROADCAST_RETRY_DELAY_MS);
     }
-  } while (!received && retries < BROADCAST_RETRIES);
+  } while (!received && payload.retryCount < BROADCAST_RETRIES);
 
   if (payload.requestACK) {
     if (received) {
       Serial.print("Message sent sucessfully after ");
-      Serial.print(retries - 1);
+      Serial.print(payload.retryCount - 1);
       Serial.println(" retries");
     } else {
       Serial.println("Message failed");
@@ -238,7 +237,6 @@ void RadioController::maybeAck(const Payload &received) {
 }
 
 bool RadioController::waitForAckPayload(unsigned long maxWait) {
-  // unsigned long startWait = millis();
   unsigned long endWaitTime = millis() + maxWait;
   Payload received;
   uint8_t incomingPipe;
@@ -256,7 +254,7 @@ bool RadioController::waitForAckPayload(unsigned long maxWait) {
         println(received);
       }
     } else {
-      // Serial.println("Nothing available from the radio yet");
+      delay(1);
     }
   }
   return false;

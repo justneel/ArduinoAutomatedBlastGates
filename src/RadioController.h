@@ -10,25 +10,24 @@
 #include "Ids.h"
 
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
-const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_MAX;
+const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_HIGH;
 
 const bool USE_CHIP_ACK = false;
-// const bool SEPARATE_PIPE_FOR_ACK = true;
+const bool SEPARATE_PIPE_FOR_ACK = false;
 
-const unsigned long BROADCAST_RESPONSE_DELAY_MS = 100;
-const unsigned long BROADCAST_RETRY_DELAY_MS = 300;
-const int BROADCAST_RETRIES = 20;
+// const unsigned long BROADCAST_RESPONSE_DELAY_MS = 100;
+const unsigned long BROADCAST_RETRY_DELAY_MS = 100;
+const int BROADCAST_RETRIES = 50;
 
 const uint8_t myAddress =  0xDE;
 const uint8_t sendAddress = myAddress;
-// const uint8_t ackAddress = 0xBE;
+const uint8_t ackAddress = 0xDF;
 
-const uint8_t CHANNEL = 3;
-// const uint8_t CHANNEL = 124;
-
+// const uint8_t CHANNEL = 3;
+const uint8_t CHANNEL = 123;
 
 const uint8_t BROADCAST_PIPE = 1;
-// const uint8_t ACK_PIPE = 2;
+const uint8_t ACK_PIPE = 2;
 
 enum Command {
     UNKNOWN,
@@ -46,6 +45,14 @@ struct Payload {
   unsigned int gateCode = 0;
   Command command = UNKNOWN;
   boolean requestACK = false;
+
+  /**
+   * The number of retries for this message.  We pass this through to the
+   * target so that the CRC is modified and the receiver knows it's a new
+   * message.  Otherwise the radio hardware might just ignore the message
+   * automatically for us.
+   */
+  unsigned int retryCount = 0;
 };
 
 const int payloadSize = sizeof(Payload);
@@ -73,7 +80,7 @@ class RadioController {
         boolean replyToAcks = false;
         void maybeAck(const Payload &received);
         bool waitForAckPayload(unsigned long maxWait);
-        bool broadcastCommand(const Payload &payload);
+        bool broadcastCommand(Payload &payload);
         unsigned long getNextMessageId();
         bool dynamicPayloadsEnabled = false;
 };

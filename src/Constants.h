@@ -29,13 +29,13 @@ const unsigned long DELAY_BETWEEN_SERVO_STEPS_MS = 5;
 
 const double MIN_CURRENT_TO_ACTIVATE = 2.0;
 
-const unsigned long TIME_BETWEEN_ON_BROADCASTS = 5000;
+const unsigned long TIME_BETWEEN_ON_BROADCASTS = 1000;
 
 /**
  * When we are the dust collector, this is the delay after the last 
  * machine turns off before we turn off the dust collector.
  */
-const unsigned long DUST_COLLECTOR_TURN_OFF_DELAY = TIME_BETWEEN_ON_BROADCASTS * 2;
+const unsigned long DUST_COLLECTOR_TURN_OFF_DELAY = 10000;
 
 const unsigned long DUST_COLLECTOR_ON_DELAY_BRANCH = 500;
 /**

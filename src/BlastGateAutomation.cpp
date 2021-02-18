@@ -6,7 +6,6 @@
 #include "GatePins.h"
 #include "Constants.h"
 #include "RadioController.h"
-#include <printf.h>
 #include <limits.h>
 #include "StatusController.h"
 #include "Ids.h"
@@ -31,7 +30,6 @@ unsigned long currentStoppedTime = VALUE_UNSET;
 
 void setup() {
   Serial.begin(9600);
-  printf_begin();
   Serial.println(" ");
   Serial.println("------------");
   Serial.println(" ");
@@ -83,7 +81,6 @@ void setup() {
       break;
   }
 
-  delay(100);
   radioController->broadcastCommand(HELLO_WORLD);
 }
 
@@ -150,6 +147,7 @@ void processCommand(const Payload &payload) {
     if (mode == DUST_COLLECTOR) {
       if (!dustCollectorOn) {
         if (payload.gateCode != 0) {
+          Serial.println("Delaying turning on dust collector until gates open");
           delay(DUST_COLLECTOR_ON_DELAY_BRANCH);
         }
         turnOnDustCollector();
