@@ -9,9 +9,9 @@ enum Mode {
   BRANCH_GATE
 };
 
-const Mode mode = MACHINE;
+// const Mode mode = MACHINE;
 // const Mode mode = BRANCH_GATE;
-// const Mode mode = DUST_COLLECTOR;
+const Mode mode = DUST_COLLECTOR;
 
 // const bool MODE_VIA_PIN = true; // NON-DEBUG = false
 

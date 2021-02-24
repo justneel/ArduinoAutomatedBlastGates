@@ -11,20 +11,21 @@
 
 const rf24_datarate_e RADIO_DATA_RATE = RF24_1MBPS;
 const rf24_pa_dbm_e RADIO_POWER_LEVEL = RF24_PA_HIGH;
+const rf24_crclength_e CRC_LENGTH  = RF24_CRC_16;
 
-const bool USE_CHIP_ACK = false;
-const bool SEPARATE_PIPE_FOR_ACK = false;
+const bool USE_CHIP_ACK = true;
+const bool SEPARATE_PIPE_FOR_ACK = true;
 
 // const unsigned long BROADCAST_RESPONSE_DELAY_MS = 100;
 const unsigned long BROADCAST_RETRY_DELAY_MS = 100;
-const int BROADCAST_RETRIES = 50;
+const int BROADCAST_RETRIES = 100;
 
 const uint8_t myAddress =  0xDE;
 const uint8_t sendAddress = myAddress;
 const uint8_t ackAddress = 0xDF;
 
 // const uint8_t CHANNEL = 3;
-const uint8_t CHANNEL = 123;
+const uint8_t CHANNEL = 92;
 
 const uint8_t BROADCAST_PIPE = 1;
 const uint8_t ACK_PIPE = 2;

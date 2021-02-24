@@ -2,7 +2,7 @@
 #include <limits.h>
 #include "Log.h"
 
-const bool LOG_OUTGOING_ACKS = false;
+const bool LOG_OUTGOING_ACKS = true;
 
 void RadioController::setup() {
     replyToAcks = mode == DUST_COLLECTOR;
@@ -39,7 +39,7 @@ void RadioController::configureRadio() {
   }
   radio.setPayloadSize(payloadSize);
   
-  radio.setCRCLength(RF24_CRC_8);
+  radio.setCRCLength(CRC_LENGTH);
   // radio.flush_rx();
   // radio.flush_tx();
 
@@ -51,8 +51,8 @@ void RadioController::configureRadio() {
   if (USE_CHIP_ACK) {
     radio.setAutoAck(true);
     // radio.enableDynamicAck();
-    radio.enableDynamicPayloads();
-    dynamicPayloadsEnabled = true;
+    // radio.enableDynamicPayloads();
+    // dynamicPayloadsEnabled = true;
 
     if (mode == DUST_COLLECTOR) {
       // radio.setAutoAck(BROADCAST_PIPE, true);
@@ -78,7 +78,8 @@ void RadioController::configureRadio() {
 bool RadioController::radioFailed() {
   if (radio.failureDetected 
       || radio.getDataRate() != RADIO_DATA_RATE 
-      || radio.getPALevel() != RADIO_POWER_LEVEL) {
+      || radio.getPALevel() != RADIO_POWER_LEVEL
+      || radio.getCRCLength() != CRC_LENGTH) {
         if (radio.failureDetected) {
           Serial.print("Failure from internal boolean.   ");
         } else if (radio.getDataRate() != RADIO_DATA_RATE) {
@@ -167,61 +168,63 @@ bool RadioController::broadcastCommand(Payload &payload) {
     println(payload);
   }
 
+  bool requestAck = payload.requestACK;
+  boolean received = !requestAck;
   if (USE_CHIP_ACK) {
     radio.stopListening();
     radio.openWritingPipe(sendAddress);
-    bool requestAck = payload.requestACK;
-    bool success = radio.write(&payload, payloadSize, !requestAck);
+    
+    // received = radio.write(&payload, payloadSize, !requestAck);
+    received = radio.write(&payload, payloadSize);
     // success = radio.txStandBy(1000) || success;
     if (requestAck) {
-      if (success) {
+      if (received) {
         Serial.println("Message sucessfully sent");
       } else {
         Serial.println("Failed to send message");
       }
-      statusController.setTransmissionStatus(success);
+      statusController.setTransmissionStatus(received);
     }
     radio.startListening();
-    return success;
-  }
-
-  boolean received = !payload.requestACK;
-  do {
-    while (radioFailed() && payload.retryCount < BROADCAST_RETRIES) {
-      Serial.println("Radio failed while trying to send out message.");
+    return received;
+  } else {
+    do {
+      while (radioFailed() && payload.retryCount < BROADCAST_RETRIES) {
+        Serial.println("Radio failed while trying to send out message.");
+        payload.retryCount++;
+        configureRadio();
+      }
+      if (payload.retryCount >= BROADCAST_RETRIES) {
+        Serial.println("Could not configure radio.  Dropping message");
+        return false;
+      }
+      radio.stopListening();
+      if (SEPARATE_PIPE_FOR_ACK && payload.command == ACK) {
+        radio.openWritingPipe(ackAddress);
+      } else {
+        radio.openWritingPipe(sendAddress);
+      }
+      radio.write(&payload, payloadSize);
       payload.retryCount++;
-      configureRadio();
-    }
-    if (payload.retryCount >= BROADCAST_RETRIES) {
-      Serial.println("Could not configure radio.  Dropping message");
-      return false;
-    }
-    radio.stopListening();
-    if (SEPARATE_PIPE_FOR_ACK && payload.command == ACK) {
-      radio.openWritingPipe(ackAddress);
-    } else {
-      radio.openWritingPipe(sendAddress);
-    }
-    radio.write(&payload, payloadSize);
-    payload.retryCount++;
-    radio.startListening();
-    if (payload.requestACK) {
-      // delay(BROADCAST_RESPONSE_DELAY_MS);
-      received = waitForAckPayload(BROADCAST_RETRY_DELAY_MS);
-    }
-  } while (!received && payload.retryCount < BROADCAST_RETRIES);
+      radio.startListening();
+      if (payload.requestACK) {
+        // delay(BROADCAST_RESPONSE_DELAY_MS);
+        received = waitForAckPayload(BROADCAST_RETRY_DELAY_MS);
+      }
+    } while (!received && payload.retryCount < BROADCAST_RETRIES);
 
-  if (payload.requestACK) {
-    if (received) {
-      Serial.print("Message sent sucessfully after ");
-      Serial.print(payload.retryCount - 1);
-      Serial.println(" retries");
-    } else {
-      Serial.println("Message failed");
+    if (payload.requestACK) {
+      if (received) {
+        Serial.print("Message sent sucessfully after ");
+        Serial.print(payload.retryCount - 1);
+        Serial.println(" retries");
+      } else {
+        Serial.println("Message failed");
+      }
+      statusController.setTransmissionStatus(received);
     }
-    statusController.setTransmissionStatus(received);
+    return received;
   }
-  return received;
 }
 
 
